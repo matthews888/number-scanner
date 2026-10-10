@@ -1,0 +1,8 @@
+// IndexedDB records are written one image at a time. No giant synchronous
+// JSON serialization on the main thread during multi-thousand-image jobs.
+import type {Candidate} from './phone';
+type SavedImage={key:string;user:string;batch:string;source:string;index:number;status:string;results:Candidate[]};
+function openStore():Promise<IDBDatabase>{return new Promise((resolve,reject)=>{const r=indexedDB.open('number-scanner-evidence',1);r.onupgradeneeded=()=>{const s=r.result.createObjectStore('images',{keyPath:'key'});s.createIndex('user','user')};r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)})}
+export async function saveImage(record:SavedImage){const db=await openStore();try{await new Promise<void>((resolve,reject)=>{const tx=db.transaction('images','readwrite');tx.objectStore('images').put(record);tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error)})}finally{db.close()}}
+export async function readLatest(user:string){const db=await openStore();try{return await new Promise<SavedImage[]>((resolve,reject)=>{const r=db.transaction('images').objectStore('images').index('user').getAll(user);r.onsuccess=()=>{const rows=r.result as SavedImage[];const batch=rows.map(r=>r.batch).sort().at(-1);resolve(rows.filter(r=>r.batch===batch))};r.onerror=()=>reject(r.error)})}finally{db.close()}}
+export async function clearSaved(user:string){const db=await openStore();try{await new Promise<void>((resolve,reject)=>{const tx=db.transaction('images','readwrite');const s=tx.objectStore('images');const r=s.index('user').openCursor(IDBKeyRange.only(user));r.onsuccess=()=>{const c=r.result;if(c){c.delete();c.continue()}};tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error)})}finally{db.close()}}
