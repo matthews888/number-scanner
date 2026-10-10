@@ -135,6 +135,27 @@ test('a recognised full mobile supersedes an old prefix only at the same locatio
   assert.equal(rerun.results[0].reviewState, 'corrected');
 });
 
+test('report counts normalized mobile duplicates and excluded landlines without counting OCR retries twice', () => {
+  const a = mergeRecognition(image(0), [
+    classifyPhone('0412 345 678'),
+    classifyPhone('02 1234 5678'),
+    classifyPhone('+61 2 1234 5678'),
+  ]);
+  const b = mergeRecognition(image(1), [
+    classifyPhone('+61 412 345 678'),
+    classifyPhone('03 1234 5678'),
+  ]);
+  const rows = [a, b];
+  const report = scanAccounting(rows);
+  assert.equal(report.duplicates, 1);
+  assert.equal(report.landlines, 2);
+  assert.equal(report.uniqueValid, 1);
+  assert.equal(validCSV(rows), 'phone_number\n0412345678');
+  const corrected = applyCorrection(b, b.results[1].id, '0422345678', rows).image;
+  assert.equal(scanAccounting([a, corrected]).landlines, 1);
+  assert.equal(scanAccounting([a, corrected]).uniqueValid, 2);
+});
+
 test('every screenshot is accounted for independently of duplicate and flagged findings', () => {
   const rows = Array.from({ length: 20 }, (_, i) => image(i));
   for (let i = 0; i < 16; i++) rows[i] = mergeRecognition(rows[i], [classifyPhone('0412345678')]);

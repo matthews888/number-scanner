@@ -81,6 +81,7 @@ test('review UI saves, navigates, deduplicates, exports and restores originals',
   let ui = render(<Scanner session={session} />);
   await waitFor(() => assert.ok(ui.getByRole('tab', { name: 'Flagged Numbers (2)' })));
   assert.ok(ui.getByRole('tab', { name: 'Missing digits (1)' }));
+  assert.ok(ui.getByText(/0 duplicates removed · 0 landlines excluded/));
   assert.match(
     ui.getByLabelText('Screenshot accounting').textContent!,
     /4 screenshots: 1 with a valid number.*3 without a valid number.*0 waiting/,

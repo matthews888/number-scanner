@@ -183,3 +183,9 @@ Added an exhaustive screenshot breakdown: with a valid number, without a valid n
 A visible button opens every scanned screenshot without a valid number, including incomplete/extra-digit/invalid readings and missed/failed screenshots. Original evidence, editable corrections, normalization and deduplicated CSV export are preserved. The Missing digits tab stays focused on missing digits and no confidence ratings are introduced.
 
 Validation: all 48 tests passed, including genuine OCR and UI integration. New tests account for 20 uploads with duplicates, overlapping flags, empty/failed inputs and queued images; corrections immediately update coverage. Production build, typecheck and formatting checks passed. The original four numbers the user expects have not been supplied, so this change does not claim to have recovered them or verified their digit accuracy.
+
+## Visible duplicate and landline totals
+
+The main results report now displays duplicates removed and landlines excluded without opening number lists. Mobile duplicate counts use normalized valid detections per screenshot versus unique valid numbers. Landlines are counted once per normalized number per screenshot, avoiding repeated OCR-pass inflation and treating local and +61 formatting as the same landline. A manually corrected mobile replaces its prior landline classification in the count.
+
+Validation: all 49 tests passed, including model assertions for formatted duplicates, landline retries, corrections and CSV exclusion, and a main-screen UI assertion for both counters. Production build, TypeScript and formatting checks passed.

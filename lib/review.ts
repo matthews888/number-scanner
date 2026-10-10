@@ -40,9 +40,19 @@ export function validNumbers(images: ScanImage[]) {
 export function scanAccounting(images: ScanImage[]) {
   let withValid = 0,
     waiting = 0,
-    validDetections = 0;
+    validDetections = 0,
+    landlines = 0;
   const withoutValid: ReviewItem[] = [];
   for (const image of images) {
+    // Count each excluded landline once per screenshot, even across OCR retries
+    // or local/international formatting. A manual mobile correction replaces it.
+    landlines += new Set(
+      image.results
+        .filter((f) => f.reason === 'Australian landline' && !f.corrected)
+        .map((f) =>
+          /^61[2378]\d{8}$/.test(f.normalized) ? '0' + f.normalized.slice(2) : f.normalized,
+        ),
+    ).size;
     const numbers = validNumbers([image]);
     validDetections += numbers.length;
     if (numbers.length) {
@@ -64,6 +74,7 @@ export function scanAccounting(images: ScanImage[]) {
     validDetections,
     uniqueValid,
     duplicates: validDetections - uniqueValid,
+    landlines,
   };
 }
 export function screenshotReviewItem(image: ScanImage): ReviewItem {

@@ -553,7 +553,8 @@ export default function Scanner({ session }: { session: Session }) {
               </p>
               <p>
                 {accounting.validDetections} valid detections · {accounting.uniqueValid} unique
-                numbers · {accounting.duplicates} duplicates removed
+                numbers · {accounting.duplicates} duplicates removed · {accounting.landlines}{' '}
+                landlines excluded
               </p>
               {accounting.withoutValid.length > 0 && (
                 <button
