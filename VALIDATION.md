@@ -96,3 +96,22 @@ renders the stored original Blob without any OCR highlight or tint overlay.
 The UI regression checks missing-digit filtering, closed options, absent
 highlight elements and byte-for-byte original retention, as well as correction
 and export behavior.
+
+## Saved-number selection and bulk deletion
+
+History uses one paginated list with Valid mobiles, Missing digits and Other
+numbers. Valid formatting variants share one row. Checkboxes select individual
+rows; Select all selects the entire current category across every page.
+Delete selected opens a confirmation with the exact unique-row count. Delete
+all is under More options. No existing user data was deleted during testing.
+Deletion removes every selected occurrence across saved history rows, scopes
+writes to the signed-in user, and commits successful rows before proceeding.
+A failed write is reported, preserves unrelated numbers and permits retry.
+It does not remove locally retained screenshot evidence. History reads are
+paginated so cloud rows beyond the first response are included.
+Model tests cover normalized duplicate removal, unrelated-number preservation,
+partial write failure/retry and 2,300 selected numbers. The real component DOM
+test covers 150-row selection across pages, confirmation/cancellation, missing
+and other tabs, failure/retry, export and review actions. These use controlled
+fixtures, not destructive live account tests. 41 automated tests and the
+production build pass; physical iPad rendering remains unverified.
