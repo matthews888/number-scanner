@@ -84,3 +84,15 @@ be retried. History CSVs now contain only normalized, unique valid Australian
 mobiles. Four additional history model/UI tests cover validation, duplicate
 replacement, CSV filtering, actual viewer navigation, retained-source lookup
 and unavailable-source handling. Physical iPad testing remains unverified.
+
+## Simplified main screen
+
+The main results offer Valid Numbers and Missing digits only. The latter
+shows unresolved 04-prefixed readings shorter than 10 digits. Other uncertain
+OCR evidence, missed images, landlines and reviewed entries stay accessible
+under collapsed Other scan results; they are not promoted into valid exports.
+Scan selection/deletion and secondary review actions are collapsed. The viewer
+renders the stored original Blob without any OCR highlight or tint overlay.
+The UI regression checks missing-digit filtering, closed options, absent
+highlight elements and byte-for-byte original retention, as well as correction
+and export behavior.
