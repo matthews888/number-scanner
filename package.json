@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "test": "TSX_TSCONFIG_PATH=tsconfig.test.json node --import tsx --test --test-force-exit tests/*.test.ts tests/*.test.tsx"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.116.0",
@@ -15,9 +16,14 @@
     "tesseract.js": "6.0.1"
   },
   "devDependencies": {
+    "@testing-library/react": "^16.3.3",
     "@types/node": "^22.10.2",
     "@types/react": "^19.0.3",
     "@types/react-dom": "^19.0.2",
+    "fake-indexeddb": "^6.2.5",
+    "happy-dom": "^20.14.6",
+    "sharp": "^0.35.5",
+    "tsx": "^4.23.15",
     "typescript": "^5.7.2"
   }
 }
