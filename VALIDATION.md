@@ -189,3 +189,9 @@ Validation: all 48 tests passed, including genuine OCR and UI integration. New t
 The main results report now displays duplicates removed and landlines excluded without opening number lists. Mobile duplicate counts use normalized valid detections per screenshot versus unique valid numbers. Landlines are counted once per normalized number per screenshot, avoiding repeated OCR-pass inflation and treating local and +61 formatting as the same landline. A manually corrected mobile replaces its prior landline classification in the count.
 
 Validation: all 49 tests passed, including model assertions for formatted duplicates, landline retries, corrections and CSV exclusion, and a main-screen UI assertion for both counters. Production build, TypeScript and formatting checks passed.
+
+## Simplify results to the supplied reference
+
+Kept the result heading, CSV action and source table. Replaced the expanded accounting paragraphs with one compact duplicate/landline count; detailed screenshot accounting and other review controls now live in a bordered, collapsed-by-default image-results section labelled with the processed count. Missing-digit correction remains directly accessible. Screenshot originals and extraction behavior are unchanged.
+
+Validation: all 49 tests, production build, TypeScript and formatting checks passed. UI integration checks the collapsed section, processed count, counters and existing correction/export flows. No physical iPad visual inspection was performed.

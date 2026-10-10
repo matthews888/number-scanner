@@ -82,6 +82,13 @@ test('review UI saves, navigates, deduplicates, exports and restores originals',
   await waitFor(() => assert.ok(ui.getByRole('tab', { name: 'Flagged Numbers (2)' })));
   assert.ok(ui.getByRole('tab', { name: 'Missing digits (1)' }));
   assert.ok(ui.getByText(/0 duplicates removed · 0 landlines excluded/));
+  const imageResults = ui.container.querySelector('details.imageResults')!;
+  assert.equal(imageResults.hasAttribute('open'), false);
+  assert.match(
+    imageResults.querySelector('summary')!.textContent!,
+    /4 images processed · View image results/,
+  );
+  fireEvent.click(imageResults.querySelector('summary')!);
   assert.match(
     ui.getByLabelText('Screenshot accounting').textContent!,
     /4 screenshots: 1 with a valid number.*3 without a valid number.*0 waiting/,

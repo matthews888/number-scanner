@@ -546,28 +546,10 @@ export default function Scanner({ session }: { session: Session }) {
                   Download CSV
                 </button>
               </div>
-              <p aria-label="Screenshot accounting">
-                {accounting.uploaded} screenshots: {accounting.withValid} with a valid number ·{' '}
-                {accounting.withoutValid.length} without a valid number · {accounting.waiting}{' '}
-                waiting
+              <p className="resultCounts">
+                {accounting.duplicates} duplicates removed · {accounting.landlines} landlines
+                excluded
               </p>
-              <p>
-                {accounting.validDetections} valid detections · {accounting.uniqueValid} unique
-                numbers · {accounting.duplicates} duplicates removed · {accounting.landlines}{' '}
-                landlines excluded
-              </p>
-              {accounting.withoutValid.length > 0 && (
-                <button
-                  className="secondary"
-                  disabled={busy}
-                  onClick={() => {
-                    setTab('unmatched');
-                    setPage(0);
-                  }}
-                >
-                  Screenshots without a valid number ({accounting.withoutValid.length})
-                </button>
-              )}
               <div className="actions" role="tablist" aria-label="Results">
                 {[
                   ['valid', 'Valid Numbers'],
@@ -587,11 +569,25 @@ export default function Scanner({ session }: { session: Session }) {
                   </button>
                 ))}
               </div>
-              <details className="scanOptions">
-                <summary>Other scan results</summary>
-                <p>
-                  {missed.length} screenshots with no number · {landlines.length} landlines excluded
+              <details className="scanOptions imageResults">
+                <summary>{completed + failed} images processed · View image results</summary>
+                <p aria-label="Screenshot accounting">
+                  {accounting.uploaded} screenshots: {accounting.withValid} with a valid number ·{' '}
+                  {accounting.withoutValid.length} without a valid number · {accounting.waiting}{' '}
+                  waiting
                 </p>
+                {accounting.withoutValid.length > 0 && (
+                  <button
+                    className="secondary"
+                    disabled={busy}
+                    onClick={() => {
+                      setTab('unmatched');
+                      setPage(0);
+                    }}
+                  >
+                    Screenshots without a valid number ({accounting.withoutValid.length})
+                  </button>
+                )}
                 <div className="actions" role="tablist" aria-label="Other results">
                   {[
                     ['flagged', `Flagged Numbers (${flags.length})`],
@@ -618,7 +614,7 @@ export default function Scanner({ session }: { session: Session }) {
               {tab === 'valid' ? (
                 <div className="tableWrap">
                   {valid.length > 250 && (
-                    <p>Showing 250 of {valid.length}. CSV includes all numbers.</p>
+                    <p>Showing the first 250 numbers. Your CSV includes all {valid.length}.</p>
                   )}
                   <table>
                     <thead>

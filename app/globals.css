@@ -702,3 +702,17 @@ button:focus-visible {
 .scannerTopActions .deleteButton {
   font-size: 13px;
 }
+
+.imageResults {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 16px;
+}
+.imageResults summary {
+  color: #111827;
+  font-weight: 600;
+}
+.resultCounts {
+  color: #6b7280;
+  font-size: 14px;
+}
