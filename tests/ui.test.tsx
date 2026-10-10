@@ -25,10 +25,11 @@ test('review UI saves, navigates, deduplicates, exports and restores originals',
  const session={user:{id:user,email:'test@example.test'}} as Session;
  let ui=render(<Scanner session={session}/>);
  await waitFor(()=>assert.ok(ui.getByRole('tab',{name:'Flagged Numbers (2)'})));
- assert.ok(ui.getByRole('tab',{name:'Missing digits (1)'}));
+ assert.ok(ui.getByRole('tab',{name:'Needs review (3)'}));
  assert.equal(ui.container.querySelector('details.scanOptions')?.hasAttribute('open'),false);
- fireEvent.click(ui.getByRole('tab',{name:'Missing digits (1)'}));
- assert.equal(ui.queryByRole('button',{name:/045236138903/}),null);
+ fireEvent.click(ui.getByRole('tab',{name:'Needs review (3)'}));
+ assert.ok(ui.getByRole('button',{name:/045236138903/}));
+ assert.ok(ui.getByRole('button',{name:/No number detected/}));
  assert.ok(ui.getByRole('button',{name:/048189768/}));
  fireEvent.click(ui.getByRole('tab',{name:'Flagged Numbers (2)'}));
  fireEvent.click(ui.getByRole('button',{name:/048189768/}));
@@ -52,12 +53,12 @@ test('review UI saves, navigates, deduplicates, exports and restores originals',
  assert.equal(ui.queryByRole('dialog'),null);
  assert.deepEqual(validNumbers(await readImages(user)),['0481897682','0412345678']);
  assert.equal((await readImages(user))[1].results[0].reviewState,'duplicate');
- fireEvent.click(ui.getByRole('tab',{name:'Needs Review (1)'}));
+ fireEvent.click(ui.getByRole('tab',{name:'Needs review (1)'}));
  fireEvent.click(ui.getByRole('button',{name:/No number detected/}));
  await waitFor(()=>assert.ok(ui.getByRole('img',{name:'Original screenshot: original-2.png'})));
  fireEvent.change(ui.getByLabelText('Correct Australian mobile'),{target:{value:'0422345678'}});
  fireEvent.click(ui.getByRole('button',{name:'Save Number'}));
- await waitFor(()=>assert.ok(ui.getByRole('tab',{name:'Needs Review (0)'})));
+ await waitFor(()=>assert.ok(ui.getByRole('tab',{name:'Needs review (0)'})));
  fireEvent.click(ui.getByRole('button',{name:'Close'}));
  let exported='';const click=window.HTMLAnchorElement.prototype.click;window.HTMLAnchorElement.prototype.click=function(){if(this.download==='phone-numbers.csv')exported=this.href};
  fireEvent.click(ui.getByRole('button',{name:'Download CSV'}));
@@ -85,7 +86,7 @@ test('review UI saves, navigates, deduplicates, exports and restores originals',
  const older={...base(8),user:secondUser,key:secondUser+':older',batch:'2000-01-01T00:00:00.000Z'};
  await saveImage(older,{key:older.key,user:secondUser,blob:new Blob(['older original'])});
  cleanup();ui=render(<Scanner session={{user:{id:secondUser,email:'skip@example.test'}} as Session}/>);
- await waitFor(()=>assert.ok(ui.getByRole('tab',{name:'Missing digits (1)'})));
+ await waitFor(()=>assert.ok(ui.getByRole('tab',{name:'Needs review (1)'})));
  assert.ok(ui.container.querySelector('.scannerTopActions'));
  assert.ok(ui.container.querySelector('.scannerTopActions')!.compareDocumentPosition(ui.container.querySelector('.dropzone')!)&window.Node.DOCUMENT_POSITION_FOLLOWING);
  fireEvent.click(ui.getByRole('button',{name:'Delete current scan'}));

@@ -13,3 +13,4 @@ test('normalised deduplication preserves different mobiles',()=>{assert.equal(ne
 test('adjacent table dates are rejected',()=>{assert.equal(extractPhones('09/11/2026 12/11/2026')[0].category,'rejected')});
 
 test('wide spaces within formatted mobiles do not lose digits',()=>{assert.equal(extractPhones('0412  345  678')[0].normalized,'0412345678');assert.equal(extractPhones('0412  345  678')[0].category,'valid')});
+test('matching high-confidence passes do not become review merely because confidence differs',()=>{const box={x0:10,y0:10,x1:200,y1:30};const a={...classifyPhone('0412345678',97),box};const b={...classifyPhone('0412345678',96),box};const out=reconcilePasses([[a],[b]]);assert.equal(out.length,1);assert.equal(out[0].category,'valid');assert.equal(out[0].confidence,96);assert.equal(reconcilePasses([[a],[{...b,confidence:70,category:'review',reason:'Low OCR confidence'}]])[0].category,'review')});

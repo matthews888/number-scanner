@@ -128,3 +128,20 @@ errors remain visible in the confirmation for retry. The component test clicks
 Cancel without mutation, confirms deletion, checks originals are removed and
 older/other-user evidence remains, and checks upload is enabled afterward.
 All 41 tests and the production build pass.
+
+## OCR confidence and result visibility correction
+
+Previously, reconciliation incorrectly flagged matching complete numbers when
+a later pass had ANY lower confidence, even 97 vs 96. It now retains the lowest
+confidence and flags only below the existing 85 threshold; differing digits
+still remain reviewable. No missing digits are invented. Regression tests
+cover confident agreement, genuinely low-confidence agreement, disagreements,
+and actual Tesseract multi-pass recognition on light/dark fixtures.
+The two primary result tabs are Valid Numbers and Needs review. Needs review
+includes incomplete, complete uncertain and missed screenshots, instead of
+hiding complete uncertain readings behind Other scan results. Scan options
+has Recheck numbers to rerun retained originals. Fresh valid recognition can
+update matching unresolved evidence; manual corrections remain protected.
+44 automated tests and the production build pass. The supplied dashboard/CSV
+screenshots demonstrate counts only; the completeness of that user's 16-image
+batch cannot be verified without its actual source screenshots.

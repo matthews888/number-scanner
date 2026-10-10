@@ -33,7 +33,8 @@ export function markReviewed(image:ScanImage,itemId:string,state:'skipped'|'unre
 export function mergeRecognition(image:ScanImage,candidates:Candidate[],failed?:string):ScanImage {
  // Retries never erase previous OCR evidence or manual corrections.
  const results=[...image.results];
- for(const c of candidates)if(!results.some(f=>f.original===c.original&&f.normalized===c.normalized&&JSON.stringify(f.box)===JSON.stringify(c.box)))results.push({...c,id:image.key+':finding:'+results.length,reviewState:'unresolved'});
+ for(const c of candidates){const index=results.findIndex(f=>f.original===c.original&&f.normalized===c.normalized&&JSON.stringify(f.box)===JSON.stringify(c.box));if(index<0)results.push({...c,id:image.key+':finding:'+results.length,reviewState:'unresolved'});else if(unresolved(results[index].reviewState)&&!results[index].corrected&&c.category==='valid')results[index]={...results[index],...c};}
+
  return {...image,results,status:failed?'failed':results.some(f=>f.category!=='rejected')?'complete':'empty',error:failed};
 }
 const quote=(v:string)=>'"'+v.replace(/"/g,'""')+'"';

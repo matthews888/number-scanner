@@ -63,7 +63,7 @@ export function reconcilePasses(passes: Candidate[][]): Candidate[] {
   const output: Candidate[] = [];
   for (const pass of passes) for (const c of pass) {
     const old = output.find(old => old.normalized===c.normalized && (old.box&&c.box ? Math.abs(old.box.y0-c.box.y0)<18 && Math.abs(old.box.x0-c.box.x0)<30 : old.line===c.line));
-    if (old) { if (c.confidence < old.confidence && old.category === 'valid') { old.category = 'review'; old.reason = 'Low confidence in an OCR pass'; } continue; }
+    if (old) { old.confidence=Math.min(old.confidence,c.confidence); if (old.confidence < 85 && old.category === 'valid') { old.category = 'review'; old.reason = 'Low confidence in an OCR pass'; } continue; }
     const copy = { ...c }; output.push(copy);
   }
   // Different readings in the same line are never silently resolved.
