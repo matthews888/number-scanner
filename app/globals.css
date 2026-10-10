@@ -23,3 +23,5 @@ select{max-width:260px;padding:10px;border:1px solid #d1d5db;border-radius:8px}.
 .deleteNumbersDialog h2 {margin-top:0;}
 .savedNumbers .actions {flex-wrap:wrap;}
 @media(max-width:700px){.savedNumbersHeading{align-items:stretch;flex-direction:column;}.savedNumbersHeading h1{font-size:28px;}.savedRow{padding:8px;gap:8px;}.savedRow .savedHint{font-size:11px;}.savedNumbers [role=tab]{font-size:13px;padding:10px;}.bulkToolbar{gap:8px;}}
+.scannerTopActions {display:flex;justify-content:flex-end;margin-bottom:24px;padding-bottom:16px;border-bottom:1px solid #eef0f3;}
+.scannerTopActions .deleteButton {font-size:13px;}

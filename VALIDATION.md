@@ -115,3 +115,16 @@ test covers 150-row selection across pages, confirmation/cancellation, missing
 and other tabs, failure/retry, export and review actions. These use controlled
 fixtures, not destructive live account tests. 41 automated tests and the
 production build pass; physical iPad rendering remains unverified.
+
+## Delete current dashboard scan
+
+Delete current scan is at the top of the scanner panel, separate from Upload,
+Scan and Download. It opens an in-app confirmation with Cancel and Confirm
+delete. Confirmation atomically deletes only the current user's selected
+local scan metadata and original screenshots, clears review/results/progress,
+and opens a fresh scan. Other retained scans and cloud saved history remain.
+Deletion is disabled while processing and when the current scan is empty;
+errors remain visible in the confirmation for retry. The component test clicks
+Cancel without mutation, confirms deletion, checks originals are removed and
+older/other-user evidence remains, and checks upload is enabled afterward.
+All 41 tests and the production build pass.

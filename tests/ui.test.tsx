@@ -81,5 +81,26 @@ test('review UI saves, navigates, deduplicates, exports and restores originals',
  fireEvent.click(ui.getByRole('button',{name:'Mark as Unreadable'}));
  await waitFor(()=>assert.ok(ui.getByRole('tab',{name:'Flagged Numbers (1)'})));
  const skipped=await readImages(secondUser);assert.equal(skipped[0].results[0].reviewState,'skipped');assert.equal(skipped[1].results[0].reviewState,'unreadable');
+ // Current scan deletion is separate from upload/scan and requires confirmation.
+ const older={...base(8),user:secondUser,key:secondUser+':older',batch:'2000-01-01T00:00:00.000Z'};
+ await saveImage(older,{key:older.key,user:secondUser,blob:new Blob(['older original'])});
+ cleanup();ui=render(<Scanner session={{user:{id:secondUser,email:'skip@example.test'}} as Session}/>);
+ await waitFor(()=>assert.ok(ui.getByRole('tab',{name:'Missing digits (1)'})));
+ assert.ok(ui.container.querySelector('.scannerTopActions'));
+ assert.ok(ui.container.querySelector('.scannerTopActions')!.compareDocumentPosition(ui.container.querySelector('.dropzone')!)&window.Node.DOCUMENT_POSITION_FOLLOWING);
+ fireEvent.click(ui.getByRole('button',{name:'Delete current scan'}));
+ assert.ok(ui.getByRole('heading',{name:'Delete current scan?'}));
+ assert.equal((await readImages(secondUser)).length,3);
+ fireEvent.click(ui.getByRole('button',{name:'Cancel'}));assert.ok(ui.queryByRole('dialog')===null);
+ assert.equal((await readImages(secondUser)).length,3);
+ fireEvent.click(ui.getByRole('button',{name:'Delete current scan'}));fireEvent.click(ui.getByRole('button',{name:'Confirm delete'}));
+ await waitFor(()=>assert.match(ui.getByRole('status').textContent!,/Ready for a new lookup/));
+ assert.ok(ui.queryByRole('dialog')===null);assert.ok(ui.queryByRole('tab',{name:'Valid Numbers'})===null);
+ const retained=await readImages(secondUser);assert.equal(retained.length,1);assert.equal(retained[0].key,older.key);
+ assert.equal(await readScreenshot(secondUser+':0',secondUser),undefined);assert.equal(await readScreenshot(secondUser+':1',secondUser),undefined);
+ assert.equal(await (await readScreenshot(older.key,secondUser))!.blob.text(),'older original');
+ assert.equal((await readImages(user)).length,4);
+ assert.equal((ui.getByRole('button',{name:'Choose Photos'}) as HTMLButtonElement).disabled,false);
+ assert.equal((ui.getByRole('button',{name:'Delete current scan'}) as HTMLButtonElement).disabled,true);
  cleanup();await window.happyDOM.abort();
 });
