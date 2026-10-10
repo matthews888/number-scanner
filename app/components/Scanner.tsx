@@ -11,6 +11,8 @@ import {
 } from '../../lib/checkpoint';
 import {
   applyCorrection,
+  scanAccounting,
+  screenshotReviewItem,
   flaggedItems,
   markReviewed,
   mergeRecognition,
@@ -105,6 +107,7 @@ export default function Scanner({ session }: { session: Session }) {
     }
     return sources;
   }, [images]);
+  const accounting = useMemo(() => scanAccounting(images), [images]);
   const valid = useMemo(() => validNumbers(images), [images]);
   const flags = useMemo(() => flaggedItems(images), [images]);
   const missed = useMemo(() => missedItems(images), [images]);
@@ -124,8 +127,8 @@ export default function Scanner({ session }: { session: Session }) {
   const reviewById = useMemo(() => {
     const entries = new Map(allReview.map((item) => [item.id, item]));
     for (const image of images) {
-      const id = image.key + ':missed';
-      if (!entries.has(id)) entries.set(id, { id, image });
+      const item = screenshotReviewItem(image);
+      entries.set(item.id, item);
     }
     return entries;
   }, [allReview, images]);
@@ -375,17 +378,21 @@ export default function Scanner({ session }: { session: Session }) {
       (i.finding?.normalized.length ?? 0) < 10 && /^Missing digits/.test(i.finding?.reason ?? ''),
   );
   const list =
-    tab === 'pending'
-      ? missingDigits
-      : tab === 'flagged'
-        ? flags
-        : tab === 'missed'
-          ? missed
-          : tab === 'landlines'
-            ? landlines
-            : tab === 'reviewed'
-              ? allReview.filter((i) => !unresolved(i.finding?.reviewState ?? i.image.reviewState))
-              : [];
+    tab === 'unmatched'
+      ? accounting.withoutValid
+      : tab === 'pending'
+        ? missingDigits
+        : tab === 'flagged'
+          ? flags
+          : tab === 'missed'
+            ? missed
+            : tab === 'landlines'
+              ? landlines
+              : tab === 'reviewed'
+                ? allReview.filter(
+                    (i) => !unresolved(i.finding?.reviewState ?? i.image.reviewState),
+                  )
+                : [];
   if (loading) return <main className="authPage">Opening retained scans…</main>;
   return (
     <main className="page">
@@ -529,7 +536,7 @@ export default function Scanner({ session }: { session: Session }) {
               <div className="resultsHeader">
                 <div>
                   <p className="label">RESULTS</p>
-                  <h2>{valid.length} valid numbers</h2>
+                  <h2>{valid.length} unique valid numbers</h2>
                 </div>
                 <button
                   className="primary"
@@ -539,6 +546,27 @@ export default function Scanner({ session }: { session: Session }) {
                   Download CSV
                 </button>
               </div>
+              <p aria-label="Screenshot accounting">
+                {accounting.uploaded} screenshots: {accounting.withValid} with a valid number ·{' '}
+                {accounting.withoutValid.length} without a valid number · {accounting.waiting}{' '}
+                waiting
+              </p>
+              <p>
+                {accounting.validDetections} valid detections · {accounting.uniqueValid} unique
+                numbers · {accounting.duplicates} duplicates removed
+              </p>
+              {accounting.withoutValid.length > 0 && (
+                <button
+                  className="secondary"
+                  disabled={busy}
+                  onClick={() => {
+                    setTab('unmatched');
+                    setPage(0);
+                  }}
+                >
+                  Screenshots without a valid number ({accounting.withoutValid.length})
+                </button>
+              )}
               <div className="actions" role="tablist" aria-label="Results">
                 {[
                   ['valid', 'Valid Numbers'],

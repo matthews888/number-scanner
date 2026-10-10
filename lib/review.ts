@@ -35,6 +35,47 @@ export function validNumbers(images: ScanImage[]) {
     }
   return [...numbers];
 }
+// Screenshot counts are mutually exclusive; number counts may include several
+// detections per image. Never infer image coverage from unique-number totals.
+export function scanAccounting(images: ScanImage[]) {
+  let withValid = 0,
+    waiting = 0,
+    validDetections = 0;
+  const withoutValid: ReviewItem[] = [];
+  for (const image of images) {
+    const numbers = validNumbers([image]);
+    validDetections += numbers.length;
+    if (numbers.length) {
+      withValid++;
+      continue;
+    }
+    if (image.status === 'queued') {
+      waiting++;
+      continue;
+    }
+    withoutValid.push(screenshotReviewItem(image));
+  }
+  const uniqueValid = validNumbers(images).length;
+  return {
+    uploaded: images.length,
+    withValid,
+    waiting,
+    withoutValid,
+    validDetections,
+    uniqueValid,
+    duplicates: validDetections - uniqueValid,
+  };
+}
+export function screenshotReviewItem(image: ScanImage): ReviewItem {
+  return {
+    id: image.key + ':missed',
+    image,
+    finding:
+      image.results.find((f) => f.corrected) ??
+      image.results.find((f) => f.category === 'review' && unresolved(f.reviewState)) ??
+      image.results[0],
+  };
+}
 export function flaggedItems(images: ScanImage[], includeResolved = false): ReviewItem[] {
   return images.flatMap((image) =>
     image.results

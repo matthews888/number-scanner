@@ -175,3 +175,11 @@ Removed 41 unused CSS rules belonging to older country cards, reports and review
 The production queue now uses a shared, directly tested selection helper, replacing an unrelated test-only queue implementation. CSV downloads share one implementation. Authentication form code is separated from session handling. Review lookup and source lookup maps replace repeated array searches during result rendering. Application and test code use a committed, pinned Prettier formatter. TypeScript rejects unused variables and parameters, and `npm run check` runs required checks in a safe sequential order.
 
 Validation: all 47 tests passed after these changes, including genuine OCR, large queue bookkeeping, corrections, navigation, duplicate detection, exports, persistence and confirmed deletion. Production build, standalone type check with unused-code checks, and formatting check passed. A concurrent build/typecheck initially hit a generated Next.js route-type race; standalone type checking passed after the build finished. This is not a measured numerical code-quality score or a physical-device benchmark.
+
+## Account for every uploaded screenshot
+
+Added an exhaustive screenshot breakdown: with a valid number, without a valid number, or waiting. These categories sum to the uploaded count. Valid detections, unique valid numbers and duplicate occurrences are reported separately, rather than adding candidate flags to a unique-number total.
+
+A visible button opens every scanned screenshot without a valid number, including incomplete/extra-digit/invalid readings and missed/failed screenshots. Original evidence, editable corrections, normalization and deduplicated CSV export are preserved. The Missing digits tab stays focused on missing digits and no confidence ratings are introduced.
+
+Validation: all 48 tests passed, including genuine OCR and UI integration. New tests account for 20 uploads with duplicates, overlapping flags, empty/failed inputs and queued images; corrections immediately update coverage. Production build, typecheck and formatting checks passed. The original four numbers the user expects have not been supplied, so this change does not claim to have recovered them or verified their digit accuracy.

@@ -81,6 +81,15 @@ test('review UI saves, navigates, deduplicates, exports and restores originals',
   let ui = render(<Scanner session={session} />);
   await waitFor(() => assert.ok(ui.getByRole('tab', { name: 'Flagged Numbers (2)' })));
   assert.ok(ui.getByRole('tab', { name: 'Missing digits (1)' }));
+  assert.match(
+    ui.getByLabelText('Screenshot accounting').textContent!,
+    /4 screenshots: 1 with a valid number.*3 without a valid number.*0 waiting/,
+  );
+  fireEvent.click(ui.getByRole('button', { name: 'Screenshots without a valid number (3)' }));
+  assert.ok(ui.getByRole('button', { name: /045236138903/ }));
+  assert.ok(ui.getByRole('button', { name: /No number detected/ }));
+  assert.ok(ui.getByRole('button', { name: /048189768/ }));
+
   assert.equal(ui.container.querySelector('details.scanOptions')?.hasAttribute('open'), false);
   fireEvent.click(ui.getByRole('tab', { name: 'Missing digits (1)' }));
   assert.equal(ui.queryByRole('button', { name: /045236138903/ }), null);

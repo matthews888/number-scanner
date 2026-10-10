@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   applyCorrection,
+  scanAccounting,
   flaggedItems,
   markReviewed,
   mergeRecognition,
@@ -132,4 +133,31 @@ test('a recognised full mobile supersedes an old prefix only at the same locatio
   const rerun = mergeRecognition(corrected, [full]);
   assert.equal(rerun.results[0].corrected, '0412345678');
   assert.equal(rerun.results[0].reviewState, 'corrected');
+});
+
+test('every screenshot is accounted for independently of duplicate and flagged findings', () => {
+  const rows = Array.from({ length: 20 }, (_, i) => image(i));
+  for (let i = 0; i < 16; i++) rows[i] = mergeRecognition(rows[i], [classifyPhone('0412345678')]);
+  rows[16] = flagged(16);
+  rows[17] = { ...image(17), status: 'empty' };
+  rows[18] = { ...image(18), status: 'failed' };
+  rows[19] = { ...image(19), status: 'queued' };
+  rows[0] = mergeRecognition(rows[0], [classifyPhone('04')]);
+  const report = scanAccounting(rows);
+  assert.equal(report.uploaded, 20);
+  assert.equal(report.withValid, 16);
+  assert.equal(report.withoutValid.length, 3);
+  assert.equal(report.waiting, 1);
+  assert.equal(report.withValid + report.withoutValid.length + report.waiting, 20);
+  assert.equal(report.validDetections, 16);
+  assert.equal(report.uniqueValid, 1);
+  assert.equal(report.duplicates, 15);
+  assert.deepEqual(
+    report.withoutValid.map((i) => i.image.index),
+    [16, 17, 18],
+  );
+  const item = report.withoutValid[0];
+  rows[16] = applyCorrection(item.image, item.finding!.id, '0481897682', rows).image;
+  assert.equal(scanAccounting(rows).withValid, 17);
+  assert.equal(scanAccounting(rows).withoutValid.length, 2);
 });
