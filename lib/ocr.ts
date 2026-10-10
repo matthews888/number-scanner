@@ -77,15 +77,17 @@ export async function recognizeFile(file: File, worker: Awaited<ReturnType<typeo
   // Always run two full-image passes, even if the first finds a number.
   for (let variant = 0; variant < 3; variant++) {
     if (variant === 2 && passes.every(p => p.length && p.every(c => c.category !== 'review')) && passes[0].map(c=>c.normalized).sort().join() === passes[1].map(c=>c.normalized).sort().join()) break;
-    const canvas = await prepareImage(file, variant);
+    let canvas:HTMLCanvasElement|null=null;
     try {
+      canvas=await prepareImage(file,variant);
       await withTimeout(worker.setParameters({ tessedit_pageseg_mode: variant === 1 ? PSM.AUTO : PSM.SPARSE_TEXT }));
       const { data } = await withTimeout(worker.recognize(canvas, {}, { text: true, blocks: true }));
-      passes.push(candidatesFromData(data));
+      const imageSize={width:canvas.width,height:canvas.height};
+      passes.push(candidatesFromData(data).map(c=>({...c,imageSize})));
     } catch(error) {
       if(!passes.length)throw error;
       return reconcilePasses(passes).map(c=>c.category==='rejected'?c:{...c,category:'review' as const,reason:'Alternative OCR pass failed — verify screenshot'});
-    } finally { canvas.width = canvas.height = 0; }
+    } finally { if(canvas)canvas.width = canvas.height = 0; }
   }
   return reconcilePasses(passes);
 }

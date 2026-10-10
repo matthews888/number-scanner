@@ -1,59 +1,73 @@
-# OCR accuracy upgrade
+# Flagged Numbers and manual correction
 
-The application retains Tesseract.js 6.0.1 and the existing authentication,
-upload and history screens. It normalises only exact Australian mobile
-patterns, separates valid/review/rejected candidates, and excludes uncertain
-readings from valid exports. No missing digits are filled or extra digits cut.
+The existing Next.js, React, Tesseract.js and Supabase application now has
+Valid Numbers, Flagged Numbers, Needs Review, Reviewed, Landlines and
+Screenshots tabs. No missing digits are invented and no extra digits trimmed.
+Exact +61 Australian mobile patterns normalise to 04XXXXXXXX. Uncertain
+prefixes, OCR characters, incomplete and overlong readings remain reviewable.
 
-## Checks completed
+## Review workflow
 
-- TypeScript and Next.js production build passed.
-- Automated digit-length, format, duplicates, dates, identifiers, low-confidence
-  and conflicting-pass tests passed.
-- Actual Tesseract OCR passed six generated image fixtures: names/dates and
-  multiple numbers, dark mode, small text, mild blur, two numbers on one line,
-  and no numbers. These inputs are generated images, not mocked OCR results.
-- Three previously supplied real screenshots were independently viewed to
-  establish their expected mobile numbers and processed with Tesseract on
-  the full scaled screenshots in sparse and automatic layout modes. All three
-  visible numbers were detected. Two screenshots required review; one had
-  an additional conflicting reading with an extra digit. It was flagged for
-  review and excluded from valid export. Actual screenshots and phone numbers
-  are not committed to this public repository.
-- Queue bookkeeping tests account for 2,300 entries and controlled failures.
-  These are not a 2,300-image OCR or device performance benchmark.
+Click a flagged number or missed screenshot to open the retained original.
+The viewer includes zoom, mouse drag/touch scroll panning, a coordinate overlay
+when OCR supplied a box, an editable field, Save Number, Save & Next,
+Previous/Next Number, Skip for Later and Mark as Unreadable. Skips remain
+unresolved. Unreadable entries stay in Reviewed with their evidence.
 
-Run `npm test` and `npm run build`. For private sample checks:
-`node --import tsx tests/private-samples.ts /absolute/path/manifest.json`.
-The external manifest is an array of `{path, expected}` records. Keep private
-images and manifests outside the repository.
+Corrections are validated and saved before UI counts change. The original
+OCR text is preserved. Corrected numbers appear immediately in valid CSV.
+Normalised duplicates keep their source evidence but export only once.
+Existing corrections can be edited by reopening Reviewed. Empty and failed
+screenshots have a separate Needs Review queue for manual entry.
 
-## Implementation and limits
+## Retained screenshots
 
-Screenshots are decoded one at a time. Canvas dimensions are bounded to 4.5
-million pixels, preprocessing yields between row chunks, canvases and object
-URLs are released, and OCR workers are recycled every 50 upload indexes.
-Two full-image passes run even after a detection; a third preprocessing pass
-runs for missing or uncertain results. A failure after a successful OCR pass
-retains that evidence in review. Worker/image failures retry once, then appear
-as failed images with an explicit retry button.
+IndexedDB stores original image Blobs separately from scan metadata. Uploads
+save one original and small thumbnail at a time. Reads of scan lists do not
+load full-size image pixels; review loads only the selected original. The
+image and its initial metadata commit in one transaction. Storage failure
+cannot mark an unretained screenshot as saved. OCR metadata writes never
+replace original images. A retry retains previous readings and corrections.
 
-Evidence checkpoints are written per image to IndexedDB in this browser.
-The latest stored numbers can be recovered as valid/review CSV after reopening.
-Original image bytes are not stored; screenshots must stay selected for
-previews and the queue does not automatically resume after a page reload.
-Browser storage can be cleared by the device. Corrections update the current
-CSV and local evidence, but do not rewrite an already saved history entry.
+Retained scans can be reopened after refresh/restart using the scan selector.
+New scan keeps previous scans. Delete retained scan explicitly removes its
+local metadata and originals. Browser persistent storage is requested when
+supported, but local browser data can still be cleared or evicted. This is
+same-device retention, not cross-device/cloud backup; images are not uploaded.
+Old checkpoints created before image retention do not contain originals. The
+viewer identifies this and lets the user attach the original file.
 
-OCR confidence is a heuristic, not an accuracy percentage. Readings below 85
-or conflicting readings go to review. Matching high-confidence passes can
-still share an OCR error. Generic numeric identifiers without contextual
-labels may resemble mobiles and cannot be conclusively distinguished from
-phone numbers using pixels alone.
+Supabase authentication and existing extracted-number history remain. Current
+retained scans hold complete review evidence locally. Already saved Supabase
+history rows are historical snapshots; manual edits update the retained scan
+and its CSV, not old cloud snapshot rows.
 
-Physical iPad, mobile and desktop browser flows, browser preprocessing pixel
-output, IndexedDB recovery, Photos/Files selection of 2,300 screenshots, and
-sustained device memory use have not been verified here. The Node screenshot
-checks exercise the real OCR and classification logic, but not browser canvas
-preprocessing. No claim of perfect extraction or production device readiness
-is made.
+## Tests and limits
+
+Run `npm test` and `npm run build`.
+
+- Actual Tesseract OCR on eight generated image fixtures: light/dark, small
+  text, mild blur, multiple numbers, dates/names, no number, 7–12 digit rows,
+  and repeated digits. The repeated-digit fixture can be fragmented by OCR;
+  prefixes are retained as review entries rather than guessed into numbers.
+- Validation/model tests cover edits, duplicate corrections, unresolved
+  exports, missed screenshots, skip/unreadable states, navigation, failed
+  retries and 2,300-entry bookkeeping. This is not a 2,300-image OCR benchmark.
+- React DOM integration clicks the actual UI controls through validation
+  errors, saving, Save & Next, Previous/Next, duplicates, missed-number entry,
+  valid CSV download, reopening retained scans, skip/unreadable, zoom and
+  coordinate overlays. Generated PNG originals are stored and checked byte
+  for byte after reopening; the test session and OCR review candidates are
+  controlled fixtures, not claimed OCR accuracy results.
+- IndexedDB tests use fake-indexeddb to verify original retention, saved
+  corrections, isolation by user, deletion and atomic storage-failure handling.
+- Private sample checks on previously supplied screenshots run outside the
+  public repository; private images, manifests and numbers are not committed.
+
+The DOM environment does not render image pixels or measure Safari memory.
+Browser binary downloads failed in this environment. Physical iPad/mobile/
+desktop rendering, pan gestures, native Photos/Files selection, browser canvas
+preprocessing and sustained 2,300-image device performance remain unverified.
+The CSS includes mobile and tablet layouts, but no physical-device verification
+or perfect OCR accuracy is claimed. OCR confidence is a heuristic, not an
+accuracy percentage. High-confidence matching passes can share errors.
