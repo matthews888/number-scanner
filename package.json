@@ -6,7 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test": "TSX_TSCONFIG_PATH=tsconfig.test.json node --import tsx --test --test-force-exit tests/*.test.ts tests/*.test.tsx"
+    "test": "TSX_TSCONFIG_PATH=tsconfig.test.json node --import tsx --test --test-force-exit tests/*.test.ts tests/*.test.tsx",
+    "typecheck": "tsc --noEmit --incremental false",
+    "format": "prettier --write \"app/**/*.{ts,tsx,css}\" \"lib/**/*.ts\" \"tests/**/*.{ts,tsx}\" package.json tsconfig.json tsconfig.test.json .prettierrc.json",
+    "format:check": "prettier --check \"app/**/*.{ts,tsx,css}\" \"lib/**/*.ts\" \"tests/**/*.{ts,tsx}\" package.json tsconfig.json tsconfig.test.json .prettierrc.json",
+    "check": "npm run format:check && npm run build && npm run typecheck && npm test"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.116.0",
@@ -22,6 +26,7 @@
     "@types/react-dom": "^19.0.2",
     "fake-indexeddb": "^6.2.5",
     "happy-dom": "^20.14.6",
+    "prettier": "3.9.10",
     "sharp": "^0.35.5",
     "tsx": "^4.23.15",
     "typescript": "^5.7.2"

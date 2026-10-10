@@ -1,20 +1,91 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import 'fake-indexeddb/auto';
-import {Window} from 'happy-dom';
-import {saveImage,readImages} from '../lib/checkpoint';
-import {classifyPhone} from '../lib/phone';
-test('history review opens retained originals, validates and saves, navigates and explains missing sources',async()=>{
- const window=new Window({url:'http://localhost:3000'});Object.assign(globalThis,{window,document:window.document,HTMLElement:window.HTMLElement,HTMLInputElement:window.HTMLInputElement,Image:window.Image,IS_REACT_ACT_ENVIRONMENT:true});
- Object.defineProperty(globalThis,'navigator',{configurable:true,value:window.navigator});URL.createObjectURL=()=> 'blob:original';URL.revokeObjectURL=()=>{};
- const {render,fireEvent,waitFor,cleanup}=await import('@testing-library/react');const {default:HistoryReview}=await import('../app/components/HistoryReview');
- const user='legacy-ui';const number='048189768';const key=user+':saved';
- await saveImage({key,user,batch:'old',source:'actual-original.png',index:0,signature:'old',status:'complete',results:[{...classifyPhone(number),id:'finding',reviewState:'unresolved'}]},{key,user,blob:new Blob(['original bytes'])});
- let saved='';let navigated='';let closed=false;
- let ui=render(<HistoryReview number={number} numbers={[number,'040280402']} user={user} onSave={async value=>{if(classifyPhone(value).category!=='valid')throw new Error('Invalid mobile');saved=value}} onClose={()=>closed=true} onNavigate={value=>navigated=value}/>);
- await waitFor(()=>assert.ok(ui.getByRole('img',{name:'Original screenshot: actual-original.png'})));
- fireEvent.click(ui.getByRole('button',{name:'Save Number'}));await waitFor(()=>assert.ok(ui.getByRole('alert')));assert.equal(saved,'');
- fireEvent.change(ui.getByLabelText('Correct Australian mobile'),{target:{value:'0481897682'}});fireEvent.click(ui.getByRole('button',{name:'Save & Next'}));await waitFor(()=>assert.equal(saved,'0481897682'));assert.equal(navigated,'040280402');assert.equal((await readImages(user))[0].results[0].corrected,'0481897682');
- cleanup();ui=render(<HistoryReview number="040280402" numbers={[number,'040280402']} user={user} onSave={async()=>{}} onClose={()=>closed=true} onNavigate={value=>navigated=value}/>);
- await waitFor(()=>assert.match(ui.getByRole('alert').textContent!,/original screenshot is unavailable/));assert.ok(ui.getByLabelText('Attach original screenshot'));assert.equal((ui.getByRole('button',{name:'Save Number'}) as HTMLButtonElement).disabled,true);fireEvent.click(ui.getByRole('button',{name:'Previous Number'}));assert.equal(navigated,number);fireEvent.click(ui.getByRole('button',{name:'Close'}));assert.equal(closed,true);cleanup();
+import { Window } from 'happy-dom';
+import { saveImage, readImages } from '../lib/checkpoint';
+import { classifyPhone } from '../lib/phone';
+test('history review opens retained originals, validates and saves, navigates and explains missing sources', async () => {
+  const window = new Window({ url: 'http://localhost:3000' });
+  Object.assign(globalThis, {
+    window,
+    document: window.document,
+    HTMLElement: window.HTMLElement,
+    HTMLInputElement: window.HTMLInputElement,
+    Image: window.Image,
+    IS_REACT_ACT_ENVIRONMENT: true,
+  });
+  Object.defineProperty(globalThis, 'navigator', { configurable: true, value: window.navigator });
+  URL.createObjectURL = () => 'blob:original';
+  URL.revokeObjectURL = () => {};
+  const { render, fireEvent, waitFor, cleanup } = await import('@testing-library/react');
+  const { default: HistoryReview } = await import('../app/components/HistoryReview');
+  const user = 'legacy-ui';
+  const number = '048189768';
+  const key = user + ':saved';
+  await saveImage(
+    {
+      key,
+      user,
+      batch: 'old',
+      source: 'actual-original.png',
+      index: 0,
+
+      status: 'complete',
+      results: [{ ...classifyPhone(number), id: 'finding', reviewState: 'unresolved' }],
+    },
+    { key, user, blob: new Blob(['original bytes']) },
+  );
+  let saved = '';
+  let navigated = '';
+  let closed = false;
+  let ui = render(
+    <HistoryReview
+      number={number}
+      numbers={[number, '040280402']}
+      user={user}
+      onSave={async (value) => {
+        if (classifyPhone(value).category !== 'valid') throw new Error('Invalid mobile');
+        saved = value;
+      }}
+      onClose={() => (closed = true)}
+      onNavigate={(value) => (navigated = value)}
+    />,
+  );
+  await waitFor(() =>
+    assert.ok(ui.getByRole('img', { name: 'Original screenshot: actual-original.png' })),
+  );
+  fireEvent.click(ui.getByRole('button', { name: 'Save Number' }));
+  await waitFor(() => assert.ok(ui.getByRole('alert')));
+  assert.equal(saved, '');
+  fireEvent.change(ui.getByLabelText('Correct Australian mobile'), {
+    target: { value: '0481897682' },
+  });
+  fireEvent.click(ui.getByRole('button', { name: 'Save & Next' }));
+  await waitFor(() => assert.equal(saved, '0481897682'));
+  assert.equal(navigated, '040280402');
+  assert.equal((await readImages(user))[0].results[0].corrected, '0481897682');
+  cleanup();
+  ui = render(
+    <HistoryReview
+      number="040280402"
+      numbers={[number, '040280402']}
+      user={user}
+      onSave={async () => {}}
+      onClose={() => (closed = true)}
+      onNavigate={(value) => (navigated = value)}
+    />,
+  );
+  await waitFor(() =>
+    assert.match(ui.getByRole('alert').textContent!, /original screenshot is unavailable/),
+  );
+  assert.ok(ui.getByLabelText('Attach original screenshot'));
+  assert.equal(
+    (ui.getByRole('button', { name: 'Save Number' }) as HTMLButtonElement).disabled,
+    true,
+  );
+  fireEvent.click(ui.getByRole('button', { name: 'Previous Number' }));
+  assert.equal(navigated, number);
+  fireEvent.click(ui.getByRole('button', { name: 'Close' }));
+  assert.equal(closed, true);
+  cleanup();
 });

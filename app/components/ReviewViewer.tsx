@@ -1,25 +1,314 @@
 'use client';
-import {useEffect,useRef,useState} from 'react';
-import {readScreenshot} from '../../lib/checkpoint';
-import {ReviewItem,unresolved} from '../../lib/review';
-export function reviewLabel(reason:string){return /OCR|confidence|conflict|interpretation/i.test(reason)?'Check number against screenshot':reason}
-export function Thumbnail({imageKey,user}:{imageKey:string;user:string}) {
- const [url,setUrl]=useState('');
- useEffect(()=>{let alive=true;let object='';void readScreenshot(imageKey,user).then(s=>{if(alive&&s?.thumbnail){object=URL.createObjectURL(s.thumbnail);setUrl(object)}}).catch(()=>{});return()=>{alive=false;if(object)URL.revokeObjectURL(object)}},[imageKey,user]);
- return url?<img className="reviewThumb" src={url} alt="Original screenshot thumbnail"/>:<span className="reviewThumb">No thumbnail</span>;
+import { useEffect, useRef, useState } from 'react';
+import { readScreenshot } from '../../lib/checkpoint';
+import { ReviewItem, unresolved } from '../../lib/review';
+export function reviewLabel(reason: string) {
+  return /OCR|confidence|conflict|interpretation/i.test(reason)
+    ? 'Check number against screenshot'
+    : reason;
 }
-export default function ReviewViewer({item,items,user,onClose,onNavigate,onSave,onMark,onAttach}:{item:ReviewItem;items:ReviewItem[];user:string;onClose:()=>void;onNavigate:(id:string)=>void;onSave:(value:string,next:boolean)=>Promise<void>;onMark:(state:'skipped'|'unreadable')=>Promise<void>;onAttach:(file:File)=>Promise<void>}){
- const[refresh,setRefresh]=useState(0);const [url,setUrl]=useState('');const[imageError,setImageError]=useState('');const[value,setValue]=useState('');const[zoom,setZoom]=useState(1);const[busy,setBusy]=useState(false);const[error,setError]=useState('');
- const viewport=useRef<HTMLDivElement>(null);const drag=useRef<{x:number;y:number;left:number;top:number}|null>(null);const close=useRef<HTMLButtonElement>(null);
- const index=items.findIndex(i=>i.id===item.id);
- useEffect(()=>{let alive=true;let object='';setUrl('');setImageError('');setValue(item.finding?.corrected??item.finding?.original??'');setZoom(1);setError('');void readScreenshot(item.image.key,user).then(s=>{if(!alive)return;if(!s){setImageError('The original screenshot is unavailable. Re-upload the original image to attach it to this scan.');return}object=URL.createObjectURL(s.blob);setUrl(object)}).catch(e=>{if(alive)setImageError(e.message)});return()=>{alive=false;if(object)URL.revokeObjectURL(object)}},[item.id,item.image.key,item.finding?.corrected,item.finding?.original,user,refresh]);
- useEffect(()=>{const previous=document.activeElement as HTMLElement|null;const overflow=document.body.style.overflow;document.body.style.overflow='hidden';close.current?.focus();return()=>{document.body.style.overflow=overflow;previous?.focus()}},[]);
- async function action(fn:()=>Promise<void>){if(busy)return;setBusy(true);setError('');try{await fn()}catch(e){setError(e instanceof Error?e.message:'Could not save review')}finally{setBusy(false)}}
- return <div className="reviewOverlay" role="dialog" aria-modal="true" aria-labelledby="reviewTitle" onKeyDown={e=>{if(e.key==='Escape'&&!busy)onClose();if(e.key==='Tab'){const buttons=e.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled),input');const first=buttons[0],last=buttons[buttons.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}}}}><section className="reviewDialog">
- <header className="reviewHeading"><div><h2 id="reviewTitle">Review number {index+1} of {items.length}</h2><p>{item.image.source} · {items.filter(i=>!unresolved(i.finding?.reviewState??i.image.reviewState)).length} resolved</p></div><button ref={close} className="secondary" disabled={busy} onClick={onClose}>Close</button></header>
- <div className="reviewToolbar"><button className="secondary" aria-label="Zoom out" onClick={()=>setZoom(z=>Math.max(.5,z-.25))}>−</button><span>{Math.round(zoom*100)}%</span><button className="secondary" aria-label="Zoom in" onClick={()=>setZoom(z=>Math.min(5,z+.25))}>+</button><button className="secondary" onClick={()=>{setZoom(1);viewport.current?.scrollTo(0,0)}}>Reset zoom</button><span>Drag or scroll to pan</span></div>
- <div className="reviewBody"><div className="screenshotViewport" ref={viewport} onPointerDown={e=>{if(e.pointerType==='mouse'){e.currentTarget.setPointerCapture(e.pointerId);drag.current={x:e.clientX,y:e.clientY,left:e.currentTarget.scrollLeft,top:e.currentTarget.scrollTop}}}} onPointerMove={e=>{if(drag.current){e.currentTarget.scrollLeft=drag.current.left-(e.clientX-drag.current.x);e.currentTarget.scrollTop=drag.current.top-(e.clientY-drag.current.y)}}} onPointerUp={()=>drag.current=null} onPointerCancel={()=>drag.current=null}>{imageError?<div><p role="alert">{imageError}</p><label>Attach original screenshot<input type="file" accept="image/*" disabled={busy} onChange={e=>{const file=e.target.files?.[0];if(file)void action(async()=>{await onAttach(file);setRefresh(n=>n+1)})}}/></label></div>:url?<div className="screenshotFrame" style={{width:`${zoom*100}%`}}><img src={url} alt={`Original screenshot: ${item.image.source}`} draggable={false}/></div>:<p>Loading original screenshot…</p>}</div>
- <div className="reviewEditor"><label htmlFor="correctedNumber">Correct Australian mobile</label><input id="correctedNumber" value={value} onChange={e=>setValue(e.target.value)} inputMode="tel" autoComplete="off" disabled={busy}/>{error&&<p role="alert" className="reviewError">{error}</p>}<div className="reviewButtons"><button className="primary" disabled={busy||!url} onClick={()=>action(()=>onSave(value,false))}>Save Number</button><details className="scanOptions"><summary>More review options</summary><button className="secondary" disabled={busy||!url} onClick={()=>action(()=>onSave(value,true))}>Save & Next</button><button className="secondary" disabled={busy} onClick={()=>action(()=>onMark('unreadable'))}>Mark as Unreadable</button><button className="secondary" disabled={busy} onClick={()=>action(()=>onMark('skipped'))}>Skip for Later</button></details></div></div></div>
- <nav className="reviewNavigation" aria-label="Review navigation"><button className="secondary" disabled={busy||index<=0} onClick={()=>onNavigate(items[index-1].id)}>Previous Number</button><button className="secondary" disabled={busy||index>=items.length-1} onClick={()=>onNavigate(items[index+1].id)}>Next Number</button></nav>
- </section></div>;
+export function Thumbnail({ imageKey, user }: { imageKey: string; user: string }) {
+  const [url, setUrl] = useState('');
+  useEffect(() => {
+    let alive = true;
+    let object = '';
+    void readScreenshot(imageKey, user)
+      .then((s) => {
+        if (alive && s?.thumbnail) {
+          object = URL.createObjectURL(s.thumbnail);
+          setUrl(object);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+      if (object) URL.revokeObjectURL(object);
+    };
+  }, [imageKey, user]);
+  return url ? (
+    <img className="reviewThumb" src={url} alt="Original screenshot thumbnail" />
+  ) : (
+    <span className="reviewThumb">No thumbnail</span>
+  );
+}
+export default function ReviewViewer({
+  item,
+  items,
+  user,
+  onClose,
+  onNavigate,
+  onSave,
+  onMark,
+  onAttach,
+}: {
+  item: ReviewItem;
+  items: ReviewItem[];
+  user: string;
+  onClose: () => void;
+  onNavigate: (id: string) => void;
+  onSave: (value: string, next: boolean) => Promise<void>;
+  onMark: (state: 'skipped' | 'unreadable') => Promise<void>;
+  onAttach: (file: File) => Promise<void>;
+}) {
+  const [refresh, setRefresh] = useState(0);
+  const [url, setUrl] = useState('');
+  const [imageError, setImageError] = useState('');
+  const [value, setValue] = useState('');
+  const [zoom, setZoom] = useState(1);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const viewport = useRef<HTMLDivElement>(null);
+  const drag = useRef<{
+    x: number;
+    y: number;
+    left: number;
+    top: number;
+  } | null>(null);
+  const close = useRef<HTMLButtonElement>(null);
+  const index = items.findIndex((i) => i.id === item.id);
+  useEffect(() => {
+    let alive = true;
+    let object = '';
+    setUrl('');
+    setImageError('');
+    setValue(item.finding?.corrected ?? item.finding?.original ?? '');
+    setZoom(1);
+    setError('');
+    void readScreenshot(item.image.key, user)
+      .then((s) => {
+        if (!alive) return;
+        if (!s) {
+          setImageError(
+            'The original screenshot is unavailable. Re-upload the original image to attach it to this scan.',
+          );
+          return;
+        }
+        object = URL.createObjectURL(s.blob);
+        setUrl(object);
+      })
+      .catch((e) => {
+        if (alive) setImageError(e.message);
+      });
+    return () => {
+      alive = false;
+      if (object) URL.revokeObjectURL(object);
+    };
+  }, [item.id, item.image.key, item.finding?.corrected, item.finding?.original, user, refresh]);
+  useEffect(() => {
+    const previous = document.activeElement as HTMLElement | null;
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    close.current?.focus();
+    return () => {
+      document.body.style.overflow = overflow;
+      previous?.focus();
+    };
+  }, []);
+  async function action(fn: () => Promise<void>) {
+    if (busy) return;
+    setBusy(true);
+    setError('');
+    try {
+      await fn();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not save review');
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <div
+      className="reviewOverlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="reviewTitle"
+      onKeyDown={(e) => {
+        if (e.key === 'Escape' && !busy) onClose();
+        if (e.key === 'Tab') {
+          const buttons = e.currentTarget.querySelectorAll<HTMLElement>(
+            'button:not(:disabled),input',
+          );
+          const first = buttons[0],
+            last = buttons[buttons.length - 1];
+          if (e.shiftKey && document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+          } else if (!e.shiftKey && document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      }}
+    >
+      <section className="reviewDialog">
+        <header className="reviewHeading">
+          <div>
+            <h2 id="reviewTitle">
+              Review number {index + 1} of {items.length}
+            </h2>
+            <p>
+              {item.image.source} ·{' '}
+              {
+                items.filter((i) => !unresolved(i.finding?.reviewState ?? i.image.reviewState))
+                  .length
+              }{' '}
+              resolved
+            </p>
+          </div>
+          <button ref={close} className="secondary" disabled={busy} onClick={onClose}>
+            Close
+          </button>
+        </header>
+        <div className="reviewToolbar">
+          <button
+            className="secondary"
+            aria-label="Zoom out"
+            onClick={() => setZoom((z) => Math.max(0.5, z - 0.25))}
+          >
+            −
+          </button>
+          <span>{Math.round(zoom * 100)}%</span>
+          <button
+            className="secondary"
+            aria-label="Zoom in"
+            onClick={() => setZoom((z) => Math.min(5, z + 0.25))}
+          >
+            +
+          </button>
+          <button
+            className="secondary"
+            onClick={() => {
+              setZoom(1);
+              viewport.current?.scrollTo(0, 0);
+            }}
+          >
+            Reset zoom
+          </button>
+          <span>Drag or scroll to pan</span>
+        </div>
+        <div className="reviewBody">
+          <div
+            className="screenshotViewport"
+            ref={viewport}
+            onPointerDown={(e) => {
+              if (e.pointerType === 'mouse') {
+                e.currentTarget.setPointerCapture(e.pointerId);
+                drag.current = {
+                  x: e.clientX,
+                  y: e.clientY,
+                  left: e.currentTarget.scrollLeft,
+                  top: e.currentTarget.scrollTop,
+                };
+              }
+            }}
+            onPointerMove={(e) => {
+              if (drag.current) {
+                e.currentTarget.scrollLeft = drag.current.left - (e.clientX - drag.current.x);
+                e.currentTarget.scrollTop = drag.current.top - (e.clientY - drag.current.y);
+              }
+            }}
+            onPointerUp={() => (drag.current = null)}
+            onPointerCancel={() => (drag.current = null)}
+          >
+            {imageError ? (
+              <div>
+                <p role="alert">{imageError}</p>
+                <label>
+                  Attach original screenshot
+                  <input
+                    type="file"
+                    accept="image/*"
+                    disabled={busy}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file)
+                        void action(async () => {
+                          await onAttach(file);
+                          setRefresh((n) => n + 1);
+                        });
+                    }}
+                  />
+                </label>
+              </div>
+            ) : url ? (
+              <div className="screenshotFrame" style={{ width: `${zoom * 100}%` }}>
+                <img
+                  src={url}
+                  alt={`Original screenshot: ${item.image.source}`}
+                  draggable={false}
+                />
+              </div>
+            ) : (
+              <p>Loading original screenshot…</p>
+            )}
+          </div>
+          <div className="reviewEditor">
+            <label htmlFor="correctedNumber">Correct Australian mobile</label>
+            <input
+              id="correctedNumber"
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              inputMode="tel"
+              autoComplete="off"
+              disabled={busy}
+            />
+            {error && (
+              <p role="alert" className="reviewError">
+                {error}
+              </p>
+            )}
+            <div className="reviewButtons">
+              <button
+                className="primary"
+                disabled={busy || !url}
+                onClick={() => action(() => onSave(value, false))}
+              >
+                Save Number
+              </button>
+              <details className="scanOptions">
+                <summary>More review options</summary>
+                <button
+                  className="secondary"
+                  disabled={busy || !url}
+                  onClick={() => action(() => onSave(value, true))}
+                >
+                  Save & Next
+                </button>
+                <button
+                  className="secondary"
+                  disabled={busy}
+                  onClick={() => action(() => onMark('unreadable'))}
+                >
+                  Mark as Unreadable
+                </button>
+                <button
+                  className="secondary"
+                  disabled={busy}
+                  onClick={() => action(() => onMark('skipped'))}
+                >
+                  Skip for Later
+                </button>
+              </details>
+            </div>
+          </div>
+        </div>
+        <nav className="reviewNavigation" aria-label="Review navigation">
+          <button
+            className="secondary"
+            disabled={busy || index <= 0}
+            onClick={() => onNavigate(items[index - 1].id)}
+          >
+            Previous Number
+          </button>
+          <button
+            className="secondary"
+            disabled={busy || index >= items.length - 1}
+            onClick={() => onNavigate(items[index + 1].id)}
+          >
+            Next Number
+          </button>
+        </nav>
+      </section>
+    </div>
+  );
 }

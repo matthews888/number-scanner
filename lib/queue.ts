@@ -1,5 +1,15 @@
-// Queue identity is the upload index, never the filename (names may repeat).
-export function pendingImages(total: number, completed: {imageIndex:number}[]) {
-  const done=new Set(completed.map(r=>r.imageIndex));
-  return Array.from({length:total},(_,i)=>i).filter(i=>!done.has(i));
+import type { ScanImage } from './review';
+// Queue identity is the retained image key, never a possibly repeated filename.
+export function getPendingImages(
+  images: ScanImage[],
+  batch: string,
+  mode: 'queued' | 'retry' | 'recheck' = 'queued',
+) {
+  return images.filter(
+    (image) =>
+      image.batch === batch &&
+      (mode === 'recheck' ||
+        image.status === 'queued' ||
+        (mode === 'retry' && image.status === 'failed')),
+  );
 }

@@ -167,3 +167,11 @@ Added a focused single-line retry for incomplete 04 readings. It enlarges a temp
 Validation: all 47 tests passed. New genuine Tesseract test first reads a visible coloured 04 prefix, then reads its wider region and obtains the complete 0499292832; the incomplete reading no longer blocks that result. Model tests cover old retained prefixes, different locations and preserved manual corrections. Production build passed.
 
 A local-only OCR check of the embedded screenshot portion in the user's IMG_5415.png attachment recognised 0499292832 as valid. A second reading with an extra icon-derived digit remained reviewable. This input is the visible screenshot within the review UI, not the original full-resolution IMG_5373.png, and does not establish completeness of the user's entire batch. No private image was committed.
+
+## Code cleanup
+
+Removed 41 unused CSS rules belonging to older country cards, reports and review layouts. Removed obsolete confidence-score collection/calculation/storage from new OCR candidates, unused upload signatures and an unused navigation helper. Older confidence-only flags still migrate correctly on load; original screenshots and manual corrections are preserved.
+
+The production queue now uses a shared, directly tested selection helper, replacing an unrelated test-only queue implementation. CSV downloads share one implementation. Authentication form code is separated from session handling. Review lookup and source lookup maps replace repeated array searches during result rendering. Application and test code use a committed, pinned Prettier formatter. TypeScript rejects unused variables and parameters, and `npm run check` runs required checks in a safe sequential order.
+
+Validation: all 47 tests passed after these changes, including genuine OCR, large queue bookkeeping, corrections, navigation, duplicate detection, exports, persistence and confirmed deletion. Production build, standalone type check with unused-code checks, and formatting check passed. A concurrent build/typecheck initially hit a generated Next.js route-type race; standalone type checking passed after the build finished. This is not a measured numerical code-quality score or a physical-device benchmark.
