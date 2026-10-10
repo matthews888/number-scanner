@@ -19,17 +19,17 @@ test('review UI saves, navigates, deduplicates, exports and restores originals',
  const {default:Scanner}=await import('../app/components/Scanner');
  const user='ui-review-test';const batch='2026-10-10T00:00:00.000Z';
  const base=(index:number):ScanImage=>({key:`${user}:${batch}:${index}`,user,batch,index,source:`original-${index}.png`,signature:`sig-${index}`,status:'complete',results:[]});
- const records=[mergeRecognition(base(0),[{...classifyPhone('048189768'),box:{x0:40,y0:46,x1:262,y1:70},imageSize:{width:900,height:350}}]),mergeRecognition(base(1),[classifyPhone('045236138903')]),{...base(2),status:'empty' as const},mergeRecognition(base(3),[classifyPhone('0412345678')])];
+ const records=[mergeRecognition(base(0),[{...classifyPhone('048189768'),box:{x0:40,y0:46,x1:262,y1:70},imageSize:{width:900,height:350}}]),mergeRecognition(base(1),[classifyPhone('045236138903')]),{...base(2),status:'empty' as const},mergeRecognition(base(3),[{...classifyPhone('0412345678',20),category:'review',reason:'Low OCR confidence'}])];
  const originals:Buffer[]=[];
  for(const record of records){const phone=['0481897682','0481897682','0422345678','0412345678'][record.index];const pixels=await sharp(Buffer.from(`<svg width="900" height="350"><rect width="100%" height="100%" fill="white"/><text x="40" y="70" font-size="32">${phone}</text></svg>`)).png().toBuffer();originals.push(pixels);const thumbnail=await sharp(pixels).resize(160).jpeg().toBuffer();await saveImage(record,{key:record.key,user,blob:new Blob([new Uint8Array(pixels)],{type:'image/png'}),thumbnail:new Blob([new Uint8Array(thumbnail)],{type:'image/jpeg'})})} 
  const session={user:{id:user,email:'test@example.test'}} as Session;
  let ui=render(<Scanner session={session}/>);
  await waitFor(()=>assert.ok(ui.getByRole('tab',{name:'Flagged Numbers (2)'})));
- assert.ok(ui.getByRole('tab',{name:'Needs review (3)'}));
+ assert.ok(ui.getByRole('tab',{name:'Missing digits (1)'}));
  assert.equal(ui.container.querySelector('details.scanOptions')?.hasAttribute('open'),false);
- fireEvent.click(ui.getByRole('tab',{name:'Needs review (3)'}));
- assert.ok(ui.getByRole('button',{name:/045236138903/}));
- assert.ok(ui.getByRole('button',{name:/No number detected/}));
+ fireEvent.click(ui.getByRole('tab',{name:'Missing digits (1)'}));
+ assert.equal(ui.queryByRole('button',{name:/045236138903/}),null);
+ assert.equal(ui.queryByRole('button',{name:/No number detected/}),null);
  assert.ok(ui.getByRole('button',{name:/048189768/}));
  fireEvent.click(ui.getByRole('tab',{name:'Flagged Numbers (2)'}));
  fireEvent.click(ui.getByRole('button',{name:/048189768/}));
@@ -53,12 +53,12 @@ test('review UI saves, navigates, deduplicates, exports and restores originals',
  assert.equal(ui.queryByRole('dialog'),null);
  assert.deepEqual(validNumbers(await readImages(user)),['0481897682','0412345678']);
  assert.equal((await readImages(user))[1].results[0].reviewState,'duplicate');
- fireEvent.click(ui.getByRole('tab',{name:'Needs review (1)'}));
+ fireEvent.click(ui.getByRole('tab',{name:'Screenshots with no number (1)'}));
  fireEvent.click(ui.getByRole('button',{name:/No number detected/}));
  await waitFor(()=>assert.ok(ui.getByRole('img',{name:'Original screenshot: original-2.png'})));
  fireEvent.change(ui.getByLabelText('Correct Australian mobile'),{target:{value:'0422345678'}});
  fireEvent.click(ui.getByRole('button',{name:'Save Number'}));
- await waitFor(()=>assert.ok(ui.getByRole('tab',{name:'Needs review (0)'})));
+ await waitFor(()=>assert.ok(ui.getByRole('tab',{name:'Screenshots with no number (0)'})));
  fireEvent.click(ui.getByRole('button',{name:'Close'}));
  let exported='';const click=window.HTMLAnchorElement.prototype.click;window.HTMLAnchorElement.prototype.click=function(){if(this.download==='phone-numbers.csv')exported=this.href};
  fireEvent.click(ui.getByRole('button',{name:'Download CSV'}));
@@ -86,7 +86,7 @@ test('review UI saves, navigates, deduplicates, exports and restores originals',
  const older={...base(8),user:secondUser,key:secondUser+':older',batch:'2000-01-01T00:00:00.000Z'};
  await saveImage(older,{key:older.key,user:secondUser,blob:new Blob(['older original'])});
  cleanup();ui=render(<Scanner session={{user:{id:secondUser,email:'skip@example.test'}} as Session}/>);
- await waitFor(()=>assert.ok(ui.getByRole('tab',{name:'Needs review (1)'})));
+ await waitFor(()=>assert.ok(ui.getByRole('tab',{name:'Missing digits (1)'})));
  assert.ok(ui.container.querySelector('.scannerTopActions'));
  assert.ok(ui.container.querySelector('.scannerTopActions')!.compareDocumentPosition(ui.container.querySelector('.dropzone')!)&window.Node.DOCUMENT_POSITION_FOLLOWING);
  fireEvent.click(ui.getByRole('button',{name:'Delete current scan'}));

@@ -26,10 +26,10 @@ test('real Tesseract OCR on eight fixture images',async()=>{
  }
  }finally{await worker.terminate()}
 });
-test('real multi-pass OCR preserves complete matching mobiles as valid when every pass is confident',async()=>{
+test('real multi-pass OCR preserves complete matching mobiles without confidence gating',async()=>{
  const {reconcilePasses}=await import('../lib/ocr');const worker=await createWorker('eng');
  try{for(const dark of [false,true]){const pixels=await sharp(Buffer.from(`<svg width="900" height="550"><rect width="100%" height="100%" fill="${dark?'#111':'white'}"/><text x="40" y="120" font-family="DejaVu Sans" font-size="42" fill="${dark?'white':'black'}">0491 570 006</text></svg>`)).png().toBuffer();const passes=[];
  for(const mode of [PSM.SPARSE_TEXT,PSM.AUTO]){await worker.setParameters({tessedit_pageseg_mode:mode});const {data}=await worker.recognize(pixels,{}, {text:true,blocks:true});passes.push(candidatesFromData(data))}
- assert.ok(passes.every(p=>p.some(c=>c.normalized==='0491570006')),'Actual OCR must find the visible mobile in both passes');const result=reconcilePasses(passes);assert.ok(result.some(c=>c.normalized==='0491570006'));for(const c of result.filter(c=>c.normalized==='0491570006')){if(passes.every(p=>p.find(n=>n.normalized===c.normalized)?.category==='valid'))assert.equal(c.category,'valid')};assert.ok(result.filter(c=>c.category==='valid').every(c=>c.normalized==='0491570006'));
+ assert.ok(passes.every(p=>p.some(c=>c.normalized==='0491570006')),'Actual OCR must find the visible mobile in both passes');const result=reconcilePasses(passes);assert.ok(result.some(c=>c.normalized==='0491570006'));for(const c of result.filter(c=>c.normalized==='0491570006')){assert.equal(c.category,'valid')};assert.ok(result.filter(c=>c.category==='valid').every(c=>c.normalized==='0491570006'));
  }}finally{await worker.terminate()}
 });

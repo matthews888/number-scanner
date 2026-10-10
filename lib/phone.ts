@@ -15,7 +15,7 @@ export function classifyPhone(original: string, confidence = 100, line = origina
     return { ...base, category: 'rejected', reason: 'Australian landline' };
   if (/[^\d\s+().-]/.test(original)) return { ...base, category: 'review', reason: 'Ambiguous OCR characters' };
   if (/\+/.test(original)&&!/^\+61/.test(original.trim()))return {...base,category:'review',reason:'Uncertain country code'};
-  if (/^04\d{8}$/.test(normalized)) return { ...base, category: confidence < 85 ? 'review' : 'valid', reason: confidence < 85 ? 'Low OCR confidence' : 'Valid Australian mobile' };
+  if (/^04\d{8}$/.test(normalized)) return { ...base, category: 'valid', reason: 'Valid Australian mobile' };
   if (/^(?:04|\+?61\s*4)/.test(original.replace(/[().-]/g, '')) || /^04/.test(normalized))
     return { ...base, category: 'review', reason: normalized.length < 10 ? 'Missing digits' : normalized.length > 10 ? 'Extra digits' : 'Invalid mobile pattern' };
   return { ...base, category: 'review', reason: normalized.length < 10 ? 'Missing digits or mobile prefix' : normalized.length > 10 ? 'Extra digits or uncertain prefix' : 'Uncertain mobile prefix' };

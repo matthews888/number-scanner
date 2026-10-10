@@ -151,3 +151,11 @@ batch cannot be verified without its actual source screenshots.
 Removed the separate scanned-number readout and diagnostic reason from the shared review editor. The original screenshot and editable number remain. Review lists use a plain verification prompt instead of OCR/confidence diagnostics, while missing/extra-digit reasons remain visible. Scanning and strict validation still run internally; original images are unchanged.
 
 Validation: the DOM integration test passed saving, invalid correction handling, navigation, duplicate detection, export, original byte preservation, restoration and confirmed deletion. Added assertions that the separate readout is absent. Production build passed. No new claim of complete real-world OCR accuracy.
+
+## Format validation without an OCR confidence cutoff
+
+Per the user's revised requirement, complete Australian mobiles are accepted by format regardless of the OCR confidence score. Removed score-based demotion from classification, word parsing and pass reconciliation. Saved confidence-only flags are reclassified on loading IndexedDB, so existing valid numbers become available without re-upload or re-scanning. This does not modify original screenshot blobs or manual corrections. Conflicting digits, ambiguous characters, extra digits and invalid prefixes remain outside valid CSV.
+
+The primary dashboard now has Valid Numbers and Missing digits only. The missing-digit list excludes complete numbers, extra-digit results and missed screenshots; other results remain accessible under the collapsed section.
+
+Validation: 45 tests passed, including genuine multi-pass Tesseract OCR, retained-result migration, missing-only UI filtering, manual correction/navigation, duplicate detection, CSV export and original preservation. Production build passed. Format validity does not establish that OCR digits match every original screenshot; the user's 16-image source batch was not available for that comparison.
