@@ -48,3 +48,14 @@ export function ocrDimensions(width: number, height: number) {
   const scale = Math.min(2, 3000 / Math.max(width, height), Math.sqrt(4500000 / (width * height)));
   return { width: Math.max(1, Math.round(width * scale)), height: Math.max(1, Math.round(height * scale)) };
 }
+
+// A full reading must actually exist at the same location. Never fill digits
+// from a prefix or replace a conflicting complete reading.
+export function supersedePartialReadings<T extends Candidate>(candidates:T[]):T[]{
+ return candidates.map(partial=>{
+  if(partial.category==='rejected'||!/^04\d{0,7}$/.test(partial.normalized)||/[^\d\s+().-]/.test(partial.original)||!partial.box)return partial;
+  const box=partial.box;
+  const complete=candidates.find(full=>full!==partial&&/^04\d{8}$/.test(full.normalized)&&full.category==='valid'&&full.box&&full.normalized.startsWith(partial.normalized)&&Math.abs(full.box.y0-box.y0)<=Math.max(8,(box.y1-box.y0)*.5)&&Math.abs(full.box.x0-box.x0)<=12&&full.box.x1>=box.x1-4);
+  return complete?{...partial,category:'rejected',reason:'Partial reading superseded by complete number at the same location'}:partial;
+ });
+}

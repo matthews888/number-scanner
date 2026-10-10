@@ -1,4 +1,4 @@
-import {Candidate,classifyPhone} from './phone';
+import {Candidate,classifyPhone,supersedePartialReadings} from './phone';
 export type ReviewState='unresolved'|'skipped'|'corrected'|'duplicate'|'unreadable';
 export type Finding=Candidate & {id:string;reviewState:ReviewState;corrected?:string;updatedAt?:string};
 export type ScanImage={key:string;user:string;batch:string;source:string;index:number;signature:string;status:'queued'|'complete'|'empty'|'failed';results:Finding[];reviewState?:ReviewState;error?:string};
@@ -35,7 +35,8 @@ export function mergeRecognition(image:ScanImage,candidates:Candidate[],failed?:
  const results=[...image.results];
  for(const c of candidates){const index=results.findIndex(f=>f.original===c.original&&f.normalized===c.normalized&&JSON.stringify(f.box)===JSON.stringify(c.box));if(index<0)results.push({...c,id:image.key+':finding:'+results.length,reviewState:'unresolved'});else if(unresolved(results[index].reviewState)&&!results[index].corrected&&c.category==='valid')results[index]={...results[index],...c};}
 
- return {...image,results,status:failed?'failed':results.some(f=>f.category!=='rejected')?'complete':'empty',error:failed};
+ const resolved=supersedePartialReadings(results).map(f=>f.corrected||!unresolved(f.reviewState)?results.find(old=>old.id===f.id)!:f);
+ return {...image,results:resolved,status:failed?'failed':results.some(f=>f.category!=='rejected')?'complete':'empty',error:failed};
 }
 const quote=(v:string)=>'"'+v.replace(/"/g,'""')+'"';
 export const validCSV=(images:ScanImage[])=>['phone_number',...validNumbers(images)].join('\n');

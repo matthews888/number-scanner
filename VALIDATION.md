@@ -159,3 +159,11 @@ Per the user's revised requirement, complete Australian mobiles are accepted by 
 The primary dashboard now has Valid Numbers and Missing digits only. The missing-digit list excludes complete numbers, extra-digit results and missed screenshots; other results remain accessible under the collapsed section.
 
 Validation: 45 tests passed, including genuine multi-pass Tesseract OCR, retained-result migration, missing-only UI filtering, manual correction/navigation, duplicate detection, CSV export and original preservation. Production build passed. Format validity does not establish that OCR digits match every original screenshot; the user's 16-image source batch was not available for that comparison.
+
+## Recover truncated prefix readings
+
+Added a focused single-line retry for incomplete 04 readings. It enlarges a temporary crop from the same screenshot location and reads it with Tesseract. A prefix is superseded only when a complete, actually recognised matching mobile starts at the same coordinates; conflicting complete numbers remain reviewable. Prior evidence and manual corrections are preserved. Original uploaded images are never rewritten.
+
+Validation: all 47 tests passed. New genuine Tesseract test first reads a visible coloured 04 prefix, then reads its wider region and obtains the complete 0499292832; the incomplete reading no longer blocks that result. Model tests cover old retained prefixes, different locations and preserved manual corrections. Production build passed.
+
+A local-only OCR check of the embedded screenshot portion in the user's IMG_5415.png attachment recognised 0499292832 as valid. A second reading with an extra icon-derived digit remained reviewable. This input is the visible screenshot within the review UI, not the original full-resolution IMG_5373.png, and does not establish completeness of the user's entire batch. No private image was committed.

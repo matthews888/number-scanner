@@ -1,5 +1,5 @@
 import { createWorker, PSM } from 'tesseract.js';
-import { Candidate, extractPhones, ocrDimensions } from './phone';
+import { Candidate, extractPhones, ocrDimensions, supersedePartialReadings } from './phone';
 export function withTimeout<T>(promise: Promise<T>, milliseconds = 90000): Promise<T> {
   let timer: ReturnType<typeof setTimeout>;
   return Promise.race([promise, new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error('Image processing timed out')), milliseconds); })]).finally(() => clearTimeout(timer));
@@ -67,10 +67,20 @@ export function reconcilePasses(passes: Candidate[][]): Candidate[] {
     const copy = { ...c }; output.push(copy);
   }
   // Different readings in the same line are never silently resolved.
-  for (const c of output) if (c.box && c.category !== 'rejected' && output.some(other => other !== c && other.box && other.category !== 'rejected' && other.normalized !== c.normalized && Math.abs(other.box.y0-c.box!.y0) < 18 && Math.abs(other.box.x0-c.box!.x0) < 30)) {
+  const resolved=supersedePartialReadings(output);
+  for (const c of resolved) if (c.box && c.category !== 'rejected' && resolved.some(other => other !== c && other.box && other.category !== 'rejected' && other.normalized !== c.normalized && Math.abs(other.box.y0-c.box!.y0) < 18 && Math.abs(other.box.x0-c.box!.x0) < 30)) {
     c.category = 'review'; c.reason = 'OCR passes disagree — verify screenshot';
   }
-  return output;
+  return resolved;
+}
+export function recoveryRegions(candidates:Candidate[],width:number,height:number){
+ const regions:{left:number;top:number;width:number;height:number}[]=[];
+ for(const c of candidates){if(!c.box||c.category==='rejected'||!/^04\d{0,7}$/.test(c.normalized))continue;
+  const b=c.box;const lineHeight=Math.max(12,b.y1-b.y0);const left=Math.max(0,Math.floor(b.x0-16));const top=Math.max(0,Math.floor(b.y0-lineHeight*.4));
+  const region={left,top,width:Math.min(width-left,Math.max(720,Math.ceil(b.x1-left+lineHeight*12))),height:Math.min(height-top,Math.ceil(lineHeight*1.8))};
+  if(!regions.some(r=>Math.abs(r.left-left)<20&&Math.abs(r.top-top)<20))regions.push(region);
+ }
+ return regions;
 }
 export async function recognizeFile(file: File, worker: Awaited<ReturnType<typeof createWorker>>) {
   const passes: Candidate[][] = [];
@@ -89,5 +99,18 @@ export async function recognizeFile(file: File, worker: Awaited<ReturnType<typeo
       return reconcilePasses(passes).map(c=>c.category==='rejected'?c:{...c,category:'review' as const,reason:'Alternative OCR pass failed — verify screenshot'});
     } finally { if(canvas)canvas.width = canvas.height = 0; }
   }
+  // Re-read incomplete phone lines in isolation at a larger text size.
+  // The retained screenshot is never changed; only temporary canvases are used.
+  const regions=recoveryRegions(passes.flat(),passes.flat().find(c=>c.imageSize)?.imageSize?.width??0,passes.flat().find(c=>c.imageSize)?.imageSize?.height??0);
+  if(regions.length){let source:HTMLCanvasElement|null=null;
+   try{source=await prepareImage(file,1);await withTimeout(worker.setParameters({tessedit_pageseg_mode:PSM.SINGLE_LINE}));
+    for(const region of regions){const crop=document.createElement('canvas');crop.width=region.width*2;crop.height=region.height*2;
+     try{const ctx=crop.getContext('2d');if(!ctx)throw new Error('Could not prepare number region');ctx.drawImage(source,region.left,region.top,region.width,region.height,0,0,crop.width,crop.height);
+      const {data}=await withTimeout(worker.recognize(crop,{}, {text:true,blocks:true}));passes.push(candidatesFromData(data).map(c=>({...c,imageSize:{width:source!.width,height:source!.height},box:c.box?{x0:c.box.x0/2+region.left,y0:c.box.y0/2+region.top,x1:c.box.x1/2+region.left,y1:c.box.y1/2+region.top}:undefined})));
+     }catch{/* Keep earlier readings available for manual correction. */}finally{crop.width=crop.height=0}
+    }
+   }catch{/* Region recovery failure must not erase complete-image results. */}finally{if(source)source.width=source.height=0}
+  }
   return reconcilePasses(passes);
 }
+
