@@ -71,3 +71,16 @@ preprocessing and sustained 2,300-image device performance remain unverified.
 The CSS includes mobile and tablet layouts, but no physical-device verification
 or perfect OCR accuracy is claimed. OCR confidence is a heuristic, not an
 accuracy percentage. High-confidence matching passes can share errors.
+
+## Older cloud history review
+
+Previous scans now makes every number clickable. Review locates same-device
+retained evidence by its extraction/correction; an older cloud record with
+only numbers and timestamps cannot recover an unsaved original. The viewer
+asks the user to attach the actual original before saving. Attachments and
+corrections are retained locally, while successful corrections update every
+matching cloud history row. Errors are displayed and uncompleted writes can
+be retried. History CSVs now contain only normalized, unique valid Australian
+mobiles. Four additional history model/UI tests cover validation, duplicate
+replacement, CSV filtering, actual viewer navigation, retained-source lookup
+and unavailable-source handling. Physical iPad testing remains unverified.
