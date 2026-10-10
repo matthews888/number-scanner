@@ -34,7 +34,7 @@ test('review UI saves, navigates, deduplicates, exports and restores originals',
  fireEvent.click(ui.getByRole('tab',{name:'Flagged Numbers (2)'}));
  fireEvent.click(ui.getByRole('button',{name:/048189768/}));
  await waitFor(()=>assert.ok(ui.getByRole('img',{name:'Original screenshot: original-0.png'})));
- assert.equal(ui.queryByLabelText('Detected number location'),null);fireEvent.click(ui.getByRole('button',{name:'Zoom in'}));assert.equal(ui.container.querySelector('.screenshotFrame')?.getAttribute('style'),'width: 125%;');fireEvent.click(ui.getByRole('button',{name:'Reset zoom'}));
+ assert.equal(ui.queryByText('SCANNED NUMBER'),null);assert.equal(ui.container.querySelector('.reviewEditor strong'),null);assert.equal(ui.queryByLabelText('Detected number location'),null);fireEvent.click(ui.getByRole('button',{name:'Zoom in'}));assert.equal(ui.container.querySelector('.screenshotFrame')?.getAttribute('style'),'width: 125%;');fireEvent.click(ui.getByRole('button',{name:'Reset zoom'}));
  const source=ui.getByRole('img',{name:'Original screenshot: original-0.png'}).getAttribute('src')!;
  assert.deepEqual(Buffer.from(await blobs.get(source)!.arrayBuffer()),originals[0]);
  fireEvent.change(ui.getByLabelText('Correct Australian mobile'),{target:{value:'048189768'}});

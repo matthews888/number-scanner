@@ -145,3 +145,9 @@ update matching unresolved evidence; manual corrections remain protected.
 44 automated tests and the production build pass. The supplied dashboard/CSV
 screenshots demonstrate counts only; the completeness of that user's 16-image
 batch cannot be verified without its actual source screenshots.
+
+## Remove OCR reading details from the interface
+
+Removed the separate scanned-number readout and diagnostic reason from the shared review editor. The original screenshot and editable number remain. Review lists use a plain verification prompt instead of OCR/confidence diagnostics, while missing/extra-digit reasons remain visible. Scanning and strict validation still run internally; original images are unchanged.
+
+Validation: the DOM integration test passed saving, invalid correction handling, navigation, duplicate detection, export, original byte preservation, restoration and confirmed deletion. Added assertions that the separate readout is absent. Production build passed. No new claim of complete real-world OCR accuracy.
