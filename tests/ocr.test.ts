@@ -175,3 +175,42 @@ test('real OCR recovers a coloured complete mobile from a separately read 04 pre
     await worker.terminate();
   }
 });
+test('colour isolation recovers styled contact numbers without fabricating partial digits', async () => {
+  const { isolateContactText, hasCleanMobile } = await import('../lib/ocr');
+  const worker = await createWorker('eng');
+  try {
+    await worker.setParameters({ tessedit_pageseg_mode: PSM.SPARSE_TEXT });
+    for (const number of [
+      '0473 123 950',
+      '0456 123 378',
+      '0458 123 444',
+      '0450 123 800',
+      '0493 123 836',
+      '04',
+    ]) {
+      const svg = `<svg width="1000" height="650"><rect width="100%" height="100%" fill="white"/><text x="40" y="70" font-family="DejaVu Sans" font-size="20">Profile 5000123</text><rect x="320" y="210" width="580" height="290" fill="white" stroke="#ddd"/><text x="350" y="300" font-family="DejaVu Sans" font-size="16">Mobile</text><text x="350" y="350" font-family="DejaVu Sans" font-size="28" font-style="italic" fill="#c34cd6">${number}</text><text x="350" y="430" font-family="DejaVu Sans" font-size="16" fill="#c34cd6">Please contact by message</text></svg>`;
+      const { data, info } = await sharp(Buffer.from(svg))
+        .ensureAlpha()
+        .raw()
+        .toBuffer({ resolveWithObject: true });
+      const pixels = new Uint8ClampedArray(data);
+      isolateContactText(pixels);
+      const png = await sharp(Buffer.from(pixels), {
+        raw: { width: info.width, height: info.height, channels: 4 },
+      })
+        .resize(info.width * 2, info.height * 2)
+        .png()
+        .toBuffer();
+      const result = candidatesFromData(
+        (await worker.recognize(png, {}, { text: true, blocks: true })).data,
+      );
+      assert.deepEqual(
+        result.filter((c) => c.category === 'valid').map((c) => c.normalized),
+        number === '04' ? [] : [number.replace(/ /g, '')],
+      );
+      assert.equal(hasCleanMobile(result), number !== '04');
+    }
+  } finally {
+    await worker.terminate();
+  }
+});

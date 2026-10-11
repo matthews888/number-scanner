@@ -51,3 +51,29 @@ test('production queue preserves upload identity and excludes completed/other sc
   );
   assert.equal(new Set(getPendingImages(records, 'batch').map((i) => i.key)).size, 2);
 });
+test('missing retry targets unresolved screenshots without erasing completed mobiles or corrections', async () => {
+  const { classifyPhone } = await import('../lib/phone');
+  const finding = (number: string) => ({
+    ...classifyPhone(number),
+    id: number,
+    reviewState: 'unresolved' as const,
+  });
+  const records = [
+    image(0, 'complete'),
+    image(1, 'complete'),
+    image(2, 'empty'),
+    image(3, 'failed'),
+    image(4, 'complete'),
+    image(5, 'complete'),
+    image(6, 'complete', 'other'),
+  ];
+  records[0].results = [finding('04')];
+  records[1].results = [finding('0412345678'), finding('5000123')];
+  records[4].results = [{ ...finding('04'), corrected: '0491570006', reviewState: 'corrected' }];
+  records[5].results = [finding('0212345678')];
+  records[6].results = [finding('04')];
+  assert.deepEqual(
+    getPendingImages(records, 'batch', 'missing').map((i) => i.index),
+    [0, 2, 3],
+  );
+});

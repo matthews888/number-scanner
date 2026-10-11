@@ -230,7 +230,7 @@ export default function Scanner({ session }: { session: Session }) {
     e.target.value = '';
     void addFiles(incoming);
   }
-  async function run(retry = false, recheck = false) {
+  async function run(retry = false, recheck = false, missing = false) {
     if (busyRef.current || loading) return;
     busyRef.current = true;
     setBusy(true);
@@ -266,7 +266,7 @@ export default function Scanner({ session }: { session: Session }) {
       const pending = getPendingImages(
         allRef.current,
         batch,
-        recheck ? 'recheck' : retry ? 'retry' : 'queued',
+        missing ? 'missing' : recheck ? 'recheck' : retry ? 'retry' : 'queued',
       );
       let count = 0;
       for (const original of pending) {
@@ -302,7 +302,9 @@ export default function Scanner({ session }: { session: Session }) {
       setMessage(
         pause.current
           ? 'Paused. Screenshots and results retained.'
-          : 'Scan finished. Open Missing digits to correct incomplete numbers.',
+          : missing
+            ? `Retry finished. ${getPendingImages(final, batch, 'missing').length} pictures still need review. Previously saved numbers and corrections are kept.`
+            : 'Scan finished. Open Missing digits to correct incomplete numbers.',
       );
       if (!final.some((i) => i.status === 'queued') && numbers.length) {
         try {
@@ -404,9 +406,12 @@ export default function Scanner({ session }: { session: Session }) {
       setBusy(false);
     }
   }
+  const missingImages = getPendingImages(images, batch, 'missing');
   const missingDigits = flags.filter(
     (i) =>
-      (i.finding?.normalized.length ?? 0) < 10 && /^Missing digits/.test(i.finding?.reason ?? ''),
+      !validNumbers([i.image]).length &&
+      (i.finding?.normalized.length ?? 0) < 10 &&
+      /^Missing digits/.test(i.finding?.reason ?? ''),
   );
   const list =
     tab === 'unmatched'
@@ -538,6 +543,15 @@ export default function Scanner({ session }: { session: Session }) {
           <button className="primary" disabled={busy || !queued} onClick={() => void run()}>
             {completed ? 'Resume scan' : 'Scan images'}
           </button>
+          {missingImages.length > 0 && (
+            <button
+              className="secondary"
+              disabled={busy}
+              onClick={() => void run(false, false, true)}
+            >
+              Retry missing numbers ({missingImages.length} pictures)
+            </button>
+          )}
           {failed > 0 && (
             <button className="secondary" disabled={busy} onClick={() => void run(true)}>
               Retry Failed

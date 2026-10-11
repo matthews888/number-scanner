@@ -24,7 +24,11 @@ export async function prepareImage(file: File, variant = 0) {
     ctx.fillStyle = '#fff';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-    if (variant) {
+    if (variant === 3) {
+      const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      isolateContactText(pixels.data);
+      ctx.putImageData(pixels, 0, 0);
+    } else if (variant) {
       const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const gray = new Uint8Array(canvas.width * canvas.height);
       let total = 0;
@@ -64,6 +68,24 @@ export async function prepareImage(file: File, variant = 0) {
     URL.revokeObjectURL(url);
   }
 }
+// Preserve purple contact glyphs that grayscale/threshold passes can erase.
+// This pass reads the actual pixels; it never fills or guesses digits.
+export function isolateContactText(pixels: Uint8ClampedArray) {
+  for (let p = 0; p < pixels.length; p += 4) {
+    const r = pixels[p],
+      g = pixels[p + 1],
+      b = pixels[p + 2];
+    const value = r > g * 1.12 && b > g * 1.1 && Math.max(r, b) - g > 22 ? 0 : 255;
+    pixels[p] = pixels[p + 1] = pixels[p + 2] = value;
+    pixels[p + 3] = 255;
+  }
+}
+export function hasCleanMobile(candidates: Candidate[]) {
+  return (
+    candidates.some((c) => c.category === 'valid') &&
+    !candidates.some((c) => c.category === 'review')
+  );
+}
 // Keep number coordinates for original-screenshot review and focused retries.
 export function candidatesFromData(data: import('tesseract.js').Page): Candidate[] {
   const lines = data.blocks?.flatMap((b) => b.paragraphs.flatMap((p) => p.lines)) ?? [];
@@ -101,17 +123,19 @@ export function reconcilePasses(passes: Candidate[][]): Candidate[] {
       const copy = { ...c };
       output.push(copy);
     }
-  // Different readings in the same line are never silently resolved.
+  // Conflicting complete readings stay reviewable; a short fragment cannot invalidate a full reading.
   const resolved = supersedePartialReadings(output);
   for (const c of resolved)
     if (
       c.box &&
+      /^04\d{8}$/.test(c.normalized) &&
       c.category !== 'rejected' &&
       resolved.some(
         (other) =>
           other !== c &&
           other.box &&
           other.category !== 'rejected' &&
+          /^04\d{8}$/.test(other.normalized) &&
           other.normalized !== c.normalized &&
           Math.abs(other.box.y0 - c.box!.y0) < 18 &&
           Math.abs(other.box.x0 - c.box!.x0) < 30,
@@ -148,19 +172,15 @@ export function recoveryRegions(candidates: Candidate[], width: number, height: 
 }
 export async function recognizeFile(file: File, worker: Awaited<ReturnType<typeof createWorker>>) {
   const passes: Candidate[][] = [];
-  // Always run two full-image passes, even if the first finds a number.
-  for (let variant = 0; variant < 3; variant++) {
+  // Clean first-pass readings do not need repeated full-page processing.
+  // Unresolved screenshots get a colour-preserving pass before destructive thresholding.
+  for (const variant of [0, 3, 1, 2]) {
+    const resolved = reconcilePasses(passes);
     if (
-      variant === 2 &&
-      passes.every((p) => p.length && p.every((c) => c.category !== 'review')) &&
-      passes[0]
-        .map((c) => c.normalized)
-        .sort()
-        .join() ===
-        passes[1]
-          .map((c) => c.normalized)
-          .sort()
-          .join()
+      hasCleanMobile(resolved) ||
+      (hasCleanMobile(passes.at(-1) ?? []) &&
+        resolved.some((c) => c.category === 'valid') &&
+        !resolved.some((c) => c.reason === 'OCR passes disagree — verify screenshot'))
     )
       break;
     let canvas: HTMLCanvasElement | null = null;
@@ -192,7 +212,7 @@ export async function recognizeFile(file: File, worker: Awaited<ReturnType<typeo
   // Re-read incomplete phone lines in isolation at a larger text size.
   // The retained screenshot is never changed; only temporary canvases are used.
   const regions = recoveryRegions(
-    passes.flat(),
+    reconcilePasses(passes),
     passes.flat().find((c) => c.imageSize)?.imageSize?.width ?? 0,
     passes.flat().find((c) => c.imageSize)?.imageSize?.height ?? 0,
   );

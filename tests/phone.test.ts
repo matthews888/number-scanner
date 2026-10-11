@@ -56,3 +56,11 @@ test('matching complete readings are deduplicated without changing digits', () =
   assert.equal(out[0].category, 'valid');
   assert.equal(reconcilePasses([[a], [classifyPhone('0412345678')]])[0].category, 'valid');
 });
+test('a short conflicting OCR fragment does not invalidate a visibly recovered complete mobile', () => {
+  const box = { x0: 10, y0: 10, x1: 200, y1: 30 };
+  const fragment = { ...classifyPhone('0412'), box };
+  const complete = { ...classifyPhone('0450639800'), box };
+  const result = reconcilePasses([[fragment], [complete]]);
+  assert.equal(result.find((c) => c.normalized === '0450639800')?.category, 'valid');
+  assert.equal(result.find((c) => c.normalized === '0412')?.category, 'review');
+});
