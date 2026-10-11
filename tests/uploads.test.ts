@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { zipSync, strToU8 } from 'fflate';
 import { isZip, zipImages } from '../lib/uploads';
+import { BlobWriter, Uint8ArrayReader, ZipWriter } from '@zip.js/zip.js';
 
 test('ZIP detection accepts iPad files without a MIME type', () => {
   assert.ok(isZip({ name: 'Screenshots.ZIP', type: '' }));
@@ -40,4 +41,45 @@ test('unreadable ZIP reports an error', async () => {
   await assert.rejects(async () => {
     for await (const file of zipImages(new File(['invalid zip'], 'broken.zip'))) void file;
   });
+});
+
+test('ZIP64 archive with streamed descriptors imports 2,300 images and reports totals', async () => {
+  const writer = new ZipWriter(new BlobWriter(), {
+    zip64: true,
+    bufferedWrite: false,
+  });
+  for (let i = 0; i < 2300; i++) {
+    await writer.add(`screenshots/${i}.png`, new Uint8ArrayReader(strToU8(`image ${i}`)), {
+      zip64: true,
+      dataDescriptor: true,
+    });
+  }
+  const archive = new File([await writer.close()], 'drive.zip');
+  let count = 0;
+  const totals: number[] = [];
+  for await (const file of zipImages(archive, (p) => totals.push(p.total))) {
+    assert.equal(await file.text(), `image ${count}`);
+    count++;
+  }
+  assert.equal(count, 2300);
+  assert.ok(totals.every((total) => total === 2300));
+});
+
+test('large stored images cross chunk boundaries and a corrupt image does not stop later files', async () => {
+  const large = new Uint8Array(300000).fill(17);
+  const bytes = zipSync(
+    { 'bad.png': strToU8('corrupted'), 'folder/large.jpg': large, 'last.png': strToU8('last') },
+    { level: 0 },
+  );
+  bytes[30 + 'bad.png'.length] ^= 1;
+  const files: File[] = [];
+  let skipped = 0;
+  for await (const file of zipImages(new File([bytes], 'batch.zip'), (p) => {
+    skipped = p.skipped;
+  }))
+    files.push(file);
+  assert.equal(skipped, 1);
+  assert.equal(files.length, 2);
+  assert.deepEqual(new Uint8Array(await files[0].arrayBuffer()), large);
+  assert.equal(await files[1].text(), 'last');
 });

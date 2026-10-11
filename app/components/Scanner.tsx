@@ -153,8 +153,8 @@ export default function Scanner({ session }: { session: Session }) {
     try {
       void navigator.storage?.persist?.().catch(() => {});
       let index = Math.max(-1, ...images.map((i) => i.index)) + 1;
-      async function retain(file: File) {
-        setMessage(`Retaining screenshot ${added + 1} · ${file.name}`);
+      async function retain(file: File, position = String(added + 1)) {
+        setMessage(`Retaining screenshot ${position} · ${file.name}`);
         const key = `${user}:${batch}:${index}`;
         let thumbnail: Blob | undefined;
         try {
@@ -180,11 +180,23 @@ export default function Scanner({ session }: { session: Session }) {
         if (isZip(file)) {
           const before = added;
           let retaining = false;
+          let total = 0;
+          let extracted = 0;
           try {
             setMessage(`Opening ${file.name}…`);
-            for await (const image of zipImages(file)) {
+            for await (const image of zipImages(file, (progress) => {
+              total = progress.total;
+              if (progress.processed === progress.total) {
+                skipped += progress.skipped;
+                archiveErrors.push(...progress.errors);
+              }
+              setMessage(
+                `${file.name}: ${progress.processed}/${progress.total} images processed · ${progress.skipped} skipped`,
+              );
+            })) {
               retaining = true;
-              await retain(image);
+              extracted++;
+              await retain(image, `${extracted}/${total}`);
               retaining = false;
             }
             if (added === before) archiveErrors.push(`${file.name}: no supported images found`);
@@ -202,7 +214,7 @@ export default function Scanner({ session }: { session: Session }) {
         }
       }
       setMessage(
-        `${added} screenshots retained on this device${skipped ? ` · ${skipped} unsupported files skipped` : ''}. Ready to scan.${archiveErrors.length ? ` ZIP issues: ${archiveErrors.join('; ')}` : ''}`,
+        `${added} screenshots retained on this device${skipped ? ` · ${skipped} files skipped` : ''}. Ready to scan.${archiveErrors.length ? ` ZIP issues: ${archiveErrors.slice(0, 5).join('; ')}${archiveErrors.length > 5 ? `; and ${archiveErrors.length - 5} more` : ''}` : ''}`,
       );
     } catch (e) {
       setMessage(
