@@ -27,6 +27,7 @@ import {
 import { recognizeFile, withTimeout } from '../../lib/ocr';
 import { downloadCSV } from '../../lib/download';
 import { getPendingImages } from '../../lib/queue';
+import { isImage, isZip, zipImages } from '../../lib/uploads';
 import { supabase } from '../../lib/supabase';
 import ReviewViewer, { Thumbnail, reviewLabel } from './ReviewViewer';
 export default function Scanner({ session }: { session: Session }) {
@@ -148,19 +149,12 @@ export default function Scanner({ session }: { session: Session }) {
     setBusy(true);
     let added = 0;
     let skipped = 0;
+    const archiveErrors: string[] = [];
     try {
       void navigator.storage?.persist?.().catch(() => {});
       let index = Math.max(-1, ...images.map((i) => i.index)) + 1;
-      for (const file of incoming) {
-        if (
-          !file.type.startsWith('image/') &&
-          !/\.(jpe?g|png|webp|gif|bmp|tiff?|heic|heif)$/i.test(file.name)
-        ) {
-          skipped++;
-          continue;
-        }
-
-        setMessage(`Retaining screenshot ${added + 1}/${incoming.length} · ${file.name}`);
+      async function retain(file: File) {
+        setMessage(`Retaining screenshot ${added + 1} · ${file.name}`);
         const key = `${user}:${batch}:${index}`;
         let thumbnail: Blob | undefined;
         try {
@@ -182,8 +176,33 @@ export default function Scanner({ session }: { session: Session }) {
         added++;
         await new Promise((r) => setTimeout(r, 0));
       }
+      for (const file of incoming) {
+        if (isZip(file)) {
+          const before = added;
+          let retaining = false;
+          try {
+            setMessage(`Opening ${file.name}…`);
+            for await (const image of zipImages(file)) {
+              retaining = true;
+              await retain(image);
+              retaining = false;
+            }
+            if (added === before) archiveErrors.push(`${file.name}: no supported images found`);
+          } catch (error) {
+            // Storage failures must stop the import; archive failures can continue with other files.
+            if (retaining) throw error;
+            archiveErrors.push(
+              `${file.name}: ${error instanceof Error ? error.message : 'could not open ZIP'}`,
+            );
+          }
+        } else if (isImage(file)) {
+          await retain(file);
+        } else {
+          skipped++;
+        }
+      }
       setMessage(
-        `${added} screenshots retained on this device${skipped ? ` · ${skipped} unsupported files skipped` : ''}. Ready to scan.`,
+        `${added} screenshots retained on this device${skipped ? ` · ${skipped} unsupported files skipped` : ''}. Ready to scan.${archiveErrors.length ? ` ZIP issues: ${archiveErrors.join('; ')}` : ''}`,
       );
     } catch (e) {
       setMessage(
@@ -435,8 +454,8 @@ export default function Scanner({ session }: { session: Session }) {
           }}
         >
           <div className="uploadIcon">↑</div>
-          <h2>Drag & drop images here</h2>
-          <p>Select images in batches · Processed one at a time</p>
+          <h2>Drag & drop images or ZIP files here</h2>
+          <p>Upload screenshots or a ZIP of images · Processed one at a time</p>
           <div className="actions">
             <button className="primary" disabled={busy} onClick={() => photos.current?.click()}>
               Choose Photos
@@ -454,7 +473,15 @@ export default function Scanner({ session }: { session: Session }) {
             disabled={busy}
             onChange={choose}
           />
-          <input ref={files} type="file" multiple hidden disabled={busy} onChange={choose} />
+          <input
+            ref={files}
+            type="file"
+            accept="image/*,.zip,application/zip,application/x-zip-compressed"
+            multiple
+            hidden
+            disabled={busy}
+            onChange={choose}
+          />
         </div>
         <details className="scanOptions">
           <summary>Scan options</summary>
